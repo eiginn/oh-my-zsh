@@ -60,6 +60,8 @@ alias glg='git log --stat --max-count=10 --show-signature'
 compdef _git glg=git-log
 alias glgg='git log --graph --max-count=10 --show-signature'
 compdef _git glgg=git-log
+alias glgp='git log --graph --max-count=10 --show-signature --patch'
+compdef _git glgg=git-log
 alias glgga='git log --graph --decorate --all --show-signature'
 compdef _git glgga=git-log
 alias glo='git log --oneline --show-signature'
