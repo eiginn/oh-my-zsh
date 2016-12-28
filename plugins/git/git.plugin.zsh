@@ -43,6 +43,7 @@ alias g='git'
 alias ga='git add'
 alias gaa='git add --all'
 alias gapa='git add --patch'
+alias gau='git add --update'
 
 alias gb='git branch'
 alias gba='git branch -a'
@@ -65,6 +66,7 @@ alias gca!='git commit -v -a --amend'
 alias gcan!='git commit -v -a --no-edit --amend'
 alias gcans!='git commit -v -a -s --no-edit --amend'
 alias gcam='git commit -a -m'
+alias gcsm='git commit -s -m'
 alias gcb='git checkout -b'
 alias gcf='git config --list'
 alias gcl='git clone --recursive'
@@ -75,7 +77,7 @@ alias gcd='git checkout develop'
 alias gcmsg='git commit -m'
 alias gco='git checkout'
 alias gcount='git shortlog -sn'
-compdef gcount=git
+compdef _git gcount
 alias gcp='git cherry-pick'
 compdef _git gcp=git-cherry-pick
 alias glg='git log --stat --max-count=10 --show-signature'
@@ -186,7 +188,7 @@ alias ghh='git help'
 alias gignore='git update-index --assume-unchanged'
 alias gignored='git ls-files -v | grep "^[[:lower:]]"'
 alias git-svn-dcommit-push='git svn dcommit && git push github master:svntrunk'
-compdef git-svn-dcommit-push=git
+compdef _git git-svn-dcommit-push=git
 
 alias gk='\gitk --all --branches'
 compdef _git gk='gitk'
@@ -264,4 +266,4 @@ alias gupv='git pull --rebase -v'
 alias glum='git pull upstream master'
 
 alias gwch='git whatchanged -p --abbrev-commit --pretty=medium'
-alias gwip='git add -A; git rm $(git ls-files --deleted) 2> /dev/null; git commit -m "--wip--"'
+alias gwip='git add -A; git rm $(git ls-files --deleted) 2> /dev/null; git commit --no-verify -m "--wip-- [skip ci]"'
