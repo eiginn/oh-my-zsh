@@ -26,6 +26,11 @@ _modules(){
 
     if _cache_invalid salt/modules || ! _retrieve_cache salt/modules; then
         _funcs=( ${${(Q)${${(s. .)"$(_call_program salt-call-cmd salt-call --local --log-level error --out txt sys.list_functions)"}%%[],]##}#\[}:#local:} )
+
+        # salt with py2 is printing unicode literals and I can't understand the above
+        # this prunes the leading "u" thats left behind from each array element
+        _funcs=(${_funcs#u})
+
         _store_cache salt/modules _funcs
     fi
 
@@ -41,6 +46,11 @@ _runners(){
 
     if _cache_invalid salt/runners || ! _retrieve_cache salt/runners; then
         _runs=( ${${(Q)${${(s. .)"$(_call_program salt-call-cmd salt-call --local --log-level error --out txt sys.list_runner_functions)"}%%[],]##}#\[}:#local:} )
+
+        # salt with py2 is printing unicode literals and I can't understand the above
+        # this prunes the leading "u" thats left behind from each array element
+        _runs=(${_runs#u})
+
         _store_cache salt/runners _runs
     fi
 
