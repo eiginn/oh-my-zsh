@@ -5,6 +5,7 @@
 # path is autoshortened to ~30 characters
 # displays git status (if applicable in current folder)
 # turns username green if superuser, otherwise it is white
+# TODO add precmd hook to only print last exit status once, see apple.zsh-theme
 
 # if superuser make the username green
 if [ $UID -eq 0 ]; then NCOLOR="red"; else NCOLOR="green"; fi
