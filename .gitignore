@@ -1,5 +1,6 @@
 # temp files directories
 cache/
 log/
+*.swp
 completions/_gopass
 completions/_kubectl
