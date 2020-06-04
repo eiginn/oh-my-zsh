@@ -1,0 +1,5547 @@
+#compdef madonctl
+
+# Copyright 2016 The Kubernetes Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+__madonctl_bash_source() {
+	alias shopt=':'
+	alias _expand=_bash_expand
+	alias _complete=_bash_comp
+	emulate -L sh
+	setopt kshglob noshglob braceexpand
+
+	source "$@"
+}
+
+__madonctl_type() {
+	# -t is not supported by zsh
+	if [ "$1" == "-t" ]; then
+		shift
+
+		# fake Bash 4 to disable "complete -o nospace". Instead
+		# "compopt +-o nospace" is used in the code to toggle trailing
+		# spaces. We don't support that, but leave trailing spaces on
+		# all the time
+		if [ "$1" = "__madonctl_compopt" ]; then
+			echo builtin
+			return 0
+		fi
+	fi
+	type "$@"
+}
+
+__madonctl_compgen() {
+	local completions w
+	completions=( $(compgen "$@") ) || return $?
+
+	# filter by given word as prefix
+	while [[ "$1" = -* && "$1" != -- ]]; do
+		shift
+		shift
+	done
+	if [[ "$1" == -- ]]; then
+		shift
+	fi
+	for w in "${completions[@]}"; do
+		if [[ "${w}" = "$1"* ]]; then
+			echo "${w}"
+		fi
+	done
+}
+
+__madonctl_compopt() {
+	true # don't do anything. Not supported by bashcompinit in zsh
+}
+
+__madonctl_declare() {
+	if [ "$1" == "-F" ]; then
+		whence -w "$@"
+	else
+		builtin declare "$@"
+	fi
+}
+
+__madonctl_ltrim_colon_completions()
+{
+	if [[ "$1" == *:* && "$COMP_WORDBREAKS" == *:* ]]; then
+		# Remove colon-word prefix from COMPREPLY items
+		local colon_word=${1%${1##*:}}
+		local i=${#COMPREPLY[*]}
+		while [[ $((--i)) -ge 0 ]]; do
+			COMPREPLY[$i]=${COMPREPLY[$i]#"$colon_word"}
+		done
+	fi
+}
+
+__madonctl_get_comp_words_by_ref() {
+	cur="${COMP_WORDS[COMP_CWORD]}"
+	prev="${COMP_WORDS[${COMP_CWORD}-1]}"
+	words=("${COMP_WORDS[@]}")
+	cword=("${COMP_CWORD[@]}")
+}
+
+__madonctl_filedir() {
+	local RET OLD_IFS w qw
+
+	__debug "_filedir $@ cur=$cur"
+	if [[ "$1" = \~* ]]; then
+		# somehow does not work. Maybe, zsh does not call this at all
+		eval echo "$1"
+		return 0
+	fi
+
+	OLD_IFS="$IFS"
+	IFS=$'\n'
+	if [ "$1" = "-d" ]; then
+		shift
+		RET=( $(compgen -d) )
+	else
+		RET=( $(compgen -f) )
+	fi
+	IFS="$OLD_IFS"
+
+	IFS="," __debug "RET=${RET[@]} len=${#RET[@]}"
+
+	for w in ${RET[@]}; do
+		if [[ ! "${w}" = "${cur}"* ]]; then
+			continue
+		fi
+		if eval "[[ \"\${w}\" = *.$1 || -d \"\${w}\" ]]"; then
+			qw="$(__madonctl_quote "${w}")"
+			if [ -d "${w}" ]; then
+				COMPREPLY+=("${qw}/")
+			else
+				COMPREPLY+=("${qw}")
+			fi
+		fi
+	done
+}
+
+__madonctl_quote() {
+    if [[ $1 == \'* || $1 == \"* ]]; then
+        # Leave out first character
+        printf %q "${1:1}"
+    else
+        printf %q "$1"
+    fi
+}
+
+autoload -U +X bashcompinit && bashcompinit
+
+# use word boundary patterns for BSD or GNU sed
+LWORD='[[:<:]]'
+RWORD='[[:>:]]'
+if sed --help 2>&1 | grep -q GNU; then
+	LWORD='\<'
+	RWORD='\>'
+fi
+
+__madonctl_convert_bash_to_zsh() {
+	sed \
+	-e 's/declare -F/whence -w/' \
+	-e 's/local \([a-zA-Z0-9_]*\)=/local \1; \1=/' \
+	-e 's/flags+=("\(--.*\)=")/flags+=("\1"); two_word_flags+=("\1")/' \
+	-e 's/must_have_one_flag+=("\(--.*\)=")/must_have_one_flag+=("\1")/' \
+	-e "s/${LWORD}_filedir${RWORD}/__madonctl_filedir/g" \
+	-e "s/${LWORD}_get_comp_words_by_ref${RWORD}/__madonctl_get_comp_words_by_ref/g" \
+	-e "s/${LWORD}__ltrim_colon_completions${RWORD}/__madonctl_ltrim_colon_completions/g" \
+	-e "s/${LWORD}compgen${RWORD}/__madonctl_compgen/g" \
+	-e "s/${LWORD}compopt${RWORD}/__madonctl_compopt/g" \
+	-e "s/${LWORD}declare${RWORD}/__madonctl_declare/g" \
+	-e "s/\\\$(type${RWORD}/\$(__madonctl_type/g" \
+	<<'BASH_COMPLETION_EOF'
+# bash completion for madonctl                             -*- shell-script -*-
+
+__madonctl_debug()
+{
+    if [[ -n ${BASH_COMP_DEBUG_FILE} ]]; then
+        echo "$*" >> "${BASH_COMP_DEBUG_FILE}"
+    fi
+}
+
+# Homebrew on Macs have version 1.3 of bash-completion which doesn't include
+# _init_completion. This is a very minimal version of that function.
+__madonctl_init_completion()
+{
+    COMPREPLY=()
+    _get_comp_words_by_ref "$@" cur prev words cword
+}
+
+__madonctl_index_of_word()
+{
+    local w word=$1
+    shift
+    index=0
+    for w in "$@"; do
+        [[ $w = "$word" ]] && return
+        index=$((index+1))
+    done
+    index=-1
+}
+
+__madonctl_contains_word()
+{
+    local w word=$1; shift
+    for w in "$@"; do
+        [[ $w = "$word" ]] && return
+    done
+    return 1
+}
+
+__madonctl_handle_go_custom_completion()
+{
+    __madonctl_debug "${FUNCNAME[0]}: cur is ${cur}, words[*] is ${words[*]}, #words[@] is ${#words[@]}"
+
+    local out requestComp lastParam lastChar comp directive args
+
+    # Prepare the command to request completions for the program.
+    # Calling ${words[0]} instead of directly madonctl allows to handle aliases
+    args=("${words[@]:1}")
+    requestComp="${words[0]} __completeNoDesc ${args[*]}"
+
+    lastParam=${words[$((${#words[@]}-1))]}
+    lastChar=${lastParam:$((${#lastParam}-1)):1}
+    __madonctl_debug "${FUNCNAME[0]}: lastParam ${lastParam}, lastChar ${lastChar}"
+
+    if [ -z "${cur}" ] && [ "${lastChar}" != "=" ]; then
+        # If the last parameter is complete (there is a space following it)
+        # We add an extra empty parameter so we can indicate this to the go method.
+        __madonctl_debug "${FUNCNAME[0]}: Adding extra empty parameter"
+        requestComp="${requestComp} \"\""
+    fi
+
+    __madonctl_debug "${FUNCNAME[0]}: calling ${requestComp}"
+    # Use eval to handle any environment variables and such
+    out=$(eval "${requestComp}" 2>/dev/null)
+
+    # Extract the directive integer at the very end of the output following a colon (:)
+    directive=${out##*:}
+    # Remove the directive
+    out=${out%:*}
+    if [ "${directive}" = "${out}" ]; then
+        # There is not directive specified
+        directive=0
+    fi
+    __madonctl_debug "${FUNCNAME[0]}: the completion directive is: ${directive}"
+    __madonctl_debug "${FUNCNAME[0]}: the completions are: ${out[*]}"
+
+    if [ $((directive & 1)) -ne 0 ]; then
+        # Error code.  No completion.
+        __madonctl_debug "${FUNCNAME[0]}: received error from custom completion go code"
+        return
+    else
+        if [ $((directive & 2)) -ne 0 ]; then
+            if [[ $(type -t compopt) = "builtin" ]]; then
+                __madonctl_debug "${FUNCNAME[0]}: activating no space"
+                compopt -o nospace
+            fi
+        fi
+        if [ $((directive & 4)) -ne 0 ]; then
+            if [[ $(type -t compopt) = "builtin" ]]; then
+                __madonctl_debug "${FUNCNAME[0]}: activating no file completion"
+                compopt +o default
+            fi
+        fi
+
+        while IFS='' read -r comp; do
+            COMPREPLY+=("$comp")
+        done < <(compgen -W "${out[*]}" -- "$cur")
+    fi
+}
+
+__madonctl_handle_reply()
+{
+    __madonctl_debug "${FUNCNAME[0]}"
+    local comp
+    case $cur in
+        -*)
+            if [[ $(type -t compopt) = "builtin" ]]; then
+                compopt -o nospace
+            fi
+            local allflags
+            if [ ${#must_have_one_flag[@]} -ne 0 ]; then
+                allflags=("${must_have_one_flag[@]}")
+            else
+                allflags=("${flags[*]} ${two_word_flags[*]}")
+            fi
+            while IFS='' read -r comp; do
+                COMPREPLY+=("$comp")
+            done < <(compgen -W "${allflags[*]}" -- "$cur")
+            if [[ $(type -t compopt) = "builtin" ]]; then
+                [[ "${COMPREPLY[0]}" == *= ]] || compopt +o nospace
+            fi
+
+            # complete after --flag=abc
+            if [[ $cur == *=* ]]; then
+                if [[ $(type -t compopt) = "builtin" ]]; then
+                    compopt +o nospace
+                fi
+
+                local index flag
+                flag="${cur%=*}"
+                __madonctl_index_of_word "${flag}" "${flags_with_completion[@]}"
+                COMPREPLY=()
+                if [[ ${index} -ge 0 ]]; then
+                    PREFIX=""
+                    cur="${cur#*=}"
+                    ${flags_completion[${index}]}
+                    if [ -n "${ZSH_VERSION}" ]; then
+                        # zsh completion needs --flag= prefix
+                        eval "COMPREPLY=( \"\${COMPREPLY[@]/#/${flag}=}\" )"
+                    fi
+                fi
+            fi
+            return 0;
+            ;;
+    esac
+
+    # check if we are handling a flag with special work handling
+    local index
+    __madonctl_index_of_word "${prev}" "${flags_with_completion[@]}"
+    if [[ ${index} -ge 0 ]]; then
+        ${flags_completion[${index}]}
+        return
+    fi
+
+    # we are parsing a flag and don't have a special handler, no completion
+    if [[ ${cur} != "${words[cword]}" ]]; then
+        return
+    fi
+
+    local completions
+    completions=("${commands[@]}")
+    if [[ ${#must_have_one_noun[@]} -ne 0 ]]; then
+        completions=("${must_have_one_noun[@]}")
+    elif [[ -n "${has_completion_function}" ]]; then
+        # if a go completion function is provided, defer to that function
+        completions=()
+        __madonctl_handle_go_custom_completion
+    fi
+    if [[ ${#must_have_one_flag[@]} -ne 0 ]]; then
+        completions+=("${must_have_one_flag[@]}")
+    fi
+    while IFS='' read -r comp; do
+        COMPREPLY+=("$comp")
+    done < <(compgen -W "${completions[*]}" -- "$cur")
+
+    if [[ ${#COMPREPLY[@]} -eq 0 && ${#noun_aliases[@]} -gt 0 && ${#must_have_one_noun[@]} -ne 0 ]]; then
+        while IFS='' read -r comp; do
+            COMPREPLY+=("$comp")
+        done < <(compgen -W "${noun_aliases[*]}" -- "$cur")
+    fi
+
+    if [[ ${#COMPREPLY[@]} -eq 0 ]]; then
+		if declare -F __madonctl_custom_func >/dev/null; then
+			# try command name qualified custom func
+			__madonctl_custom_func
+		else
+			# otherwise fall back to unqualified for compatibility
+			declare -F __custom_func >/dev/null && __custom_func
+		fi
+    fi
+
+    # available in bash-completion >= 2, not always present on macOS
+    if declare -F __ltrim_colon_completions >/dev/null; then
+        __ltrim_colon_completions "$cur"
+    fi
+
+    # If there is only 1 completion and it is a flag with an = it will be completed
+    # but we don't want a space after the =
+    if [[ "${#COMPREPLY[@]}" -eq "1" ]] && [[ $(type -t compopt) = "builtin" ]] && [[ "${COMPREPLY[0]}" == --*= ]]; then
+       compopt -o nospace
+    fi
+}
+
+# The arguments should be in the form "ext1|ext2|extn"
+__madonctl_handle_filename_extension_flag()
+{
+    local ext="$1"
+    _filedir "@(${ext})"
+}
+
+__madonctl_handle_subdirs_in_dir_flag()
+{
+    local dir="$1"
+    pushd "${dir}" >/dev/null 2>&1 && _filedir -d && popd >/dev/null 2>&1 || return
+}
+
+__madonctl_handle_flag()
+{
+    __madonctl_debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
+
+    # if a command required a flag, and we found it, unset must_have_one_flag()
+    local flagname=${words[c]}
+    local flagvalue
+    # if the word contained an =
+    if [[ ${words[c]} == *"="* ]]; then
+        flagvalue=${flagname#*=} # take in as flagvalue after the =
+        flagname=${flagname%=*} # strip everything after the =
+        flagname="${flagname}=" # but put the = back
+    fi
+    __madonctl_debug "${FUNCNAME[0]}: looking for ${flagname}"
+    if __madonctl_contains_word "${flagname}" "${must_have_one_flag[@]}"; then
+        must_have_one_flag=()
+    fi
+
+    # if you set a flag which only applies to this command, don't show subcommands
+    if __madonctl_contains_word "${flagname}" "${local_nonpersistent_flags[@]}"; then
+      commands=()
+    fi
+
+    # keep flag value with flagname as flaghash
+    # flaghash variable is an associative array which is only supported in bash > 3.
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        if [ -n "${flagvalue}" ] ; then
+            flaghash[workaround]=${flagvalue}
+        elif [ -n "${words[ $((c+1)) ]}" ] ; then
+            flaghash[workaround]=${words[ $((c+1)) ]}
+        else
+            flaghash[workaround]="true" # pad "true" for bool flag
+        fi
+    fi
+
+    # skip the argument to a two word flag
+    if [[ ${words[c]} != *"="* ]] && __madonctl_contains_word "${words[c]}" "${two_word_flags[@]}"; then
+			  __madonctl_debug "${FUNCNAME[0]}: found a flag ${words[c]}, skip the next argument"
+        c=$((c+1))
+        # if we are looking for a flags value, don't show commands
+        if [[ $c -eq $cword ]]; then
+            commands=()
+        fi
+    fi
+
+    c=$((c+1))
+
+}
+
+__madonctl_handle_noun()
+{
+    __madonctl_debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
+
+    if __madonctl_contains_word "${words[c]}" "${must_have_one_noun[@]}"; then
+        must_have_one_noun=()
+    elif __madonctl_contains_word "${words[c]}" "${noun_aliases[@]}"; then
+        must_have_one_noun=()
+    fi
+
+    nouns+=("${words[c]}")
+    c=$((c+1))
+}
+
+__madonctl_handle_command()
+{
+    __madonctl_debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
+
+    local next_command
+    if [[ -n ${last_command} ]]; then
+        next_command="_${last_command}_${words[c]//:/__}"
+    else
+        if [[ $c -eq 0 ]]; then
+            next_command="_madonctl_root_command"
+        else
+            next_command="_${words[c]//:/__}"
+        fi
+    fi
+    c=$((c+1))
+    __madonctl_debug "${FUNCNAME[0]}: looking for ${next_command}"
+    declare -F "$next_command" >/dev/null && $next_command
+}
+
+__madonctl_handle_word()
+{
+    if [[ $c -ge $cword ]]; then
+        __madonctl_handle_reply
+        return
+    fi
+    __madonctl_debug "${FUNCNAME[0]}: c is $c words[c] is ${words[c]}"
+    if [[ "${words[c]}" == -* ]]; then
+        __madonctl_handle_flag
+    elif __madonctl_contains_word "${words[c]}" "${commands[@]}"; then
+        __madonctl_handle_command
+    elif [[ $c -eq 0 ]]; then
+        __madonctl_handle_command
+    elif __madonctl_contains_word "${words[c]}" "${command_aliases[@]}"; then
+        # aliashash variable is an associative array which is only supported in bash > 3.
+        if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+            words[c]=${aliashash[${words[c]}]}
+            __madonctl_handle_command
+        else
+            __madonctl_handle_noun
+        fi
+    else
+        __madonctl_handle_noun
+    fi
+    __madonctl_handle_word
+}
+
+
+__madonctl_visibility() {
+	COMPREPLY=( direct private unlisted public )
+}
+__madonctl_output() {
+	COMPREPLY=( plain json yaml template theme )
+}
+__madonctl_color() {
+	COMPREPLY=( auto on off )
+}
+__madonctl_theme() {
+	local madonctl_output out
+	# This doesn't handle spaces or special chars...
+	if out=$(madonctl config themes 2>/dev/null); then
+		COMPREPLY=( $( compgen -W "${out[*]}" -- "$cur" ) )
+	fi
+}
+
+_madonctl_account_block()
+{
+    last_command="madonctl_account_block"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_blocks()
+{
+    last_command="madonctl_account_blocks"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_favourites()
+{
+    last_command="madonctl_account_favourites"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_follow()
+{
+    last_command="madonctl_account_follow"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--remote=")
+    two_word_flags+=("--remote")
+    two_word_flags+=("-r")
+    local_nonpersistent_flags+=("--remote=")
+    flags+=("--show-reblogs")
+    local_nonpersistent_flags+=("--show-reblogs")
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_follow-requests()
+{
+    last_command="madonctl_account_follow-requests"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--accept")
+    local_nonpersistent_flags+=("--accept")
+    flags+=("--list")
+    local_nonpersistent_flags+=("--list")
+    flags+=("--reject")
+    local_nonpersistent_flags+=("--reject")
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_followers()
+{
+    last_command="madonctl_account_followers"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_following()
+{
+    last_command="madonctl_account_following"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_mute()
+{
+    last_command="madonctl_account_mute"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--notifications")
+    local_nonpersistent_flags+=("--notifications")
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_mutes()
+{
+    last_command="madonctl_account_mutes"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_notifications()
+{
+    last_command="madonctl_account_notifications"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--clear")
+    local_nonpersistent_flags+=("--clear")
+    flags+=("--dismiss")
+    local_nonpersistent_flags+=("--dismiss")
+    flags+=("--exclude-types=")
+    two_word_flags+=("--exclude-types")
+    local_nonpersistent_flags+=("--exclude-types=")
+    flags+=("--list")
+    local_nonpersistent_flags+=("--list")
+    flags+=("--notification-id=")
+    two_word_flags+=("--notification-id")
+    local_nonpersistent_flags+=("--notification-id=")
+    flags+=("--notification-types=")
+    two_word_flags+=("--notification-types")
+    local_nonpersistent_flags+=("--notification-types=")
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_pin()
+{
+    last_command="madonctl_account_pin"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_pinned()
+{
+    last_command="madonctl_account_pinned"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_relationships()
+{
+    last_command="madonctl_account_relationships"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-ids=")
+    two_word_flags+=("--account-ids")
+    local_nonpersistent_flags+=("--account-ids=")
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_reports()
+{
+    last_command="madonctl_account_reports"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--comment=")
+    two_word_flags+=("--comment")
+    local_nonpersistent_flags+=("--comment=")
+    flags+=("--list")
+    local_nonpersistent_flags+=("--list")
+    flags+=("--status-ids=")
+    two_word_flags+=("--status-ids")
+    local_nonpersistent_flags+=("--status-ids=")
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_search()
+{
+    last_command="madonctl_account_search"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--following")
+    local_nonpersistent_flags+=("--following")
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_show()
+{
+    last_command="madonctl_account_show"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_statuses()
+{
+    last_command="madonctl_account_statuses"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--exclude-replies")
+    local_nonpersistent_flags+=("--exclude-replies")
+    flags+=("--only-media")
+    local_nonpersistent_flags+=("--only-media")
+    flags+=("--pinned")
+    local_nonpersistent_flags+=("--pinned")
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_unblock()
+{
+    last_command="madonctl_account_unblock"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_unfollow()
+{
+    last_command="madonctl_account_unfollow"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_unmute()
+{
+    last_command="madonctl_account_unmute"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_unpin()
+{
+    last_command="madonctl_account_unpin"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account_update()
+{
+    last_command="madonctl_account_update"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--avatar=")
+    two_word_flags+=("--avatar")
+    local_nonpersistent_flags+=("--avatar=")
+    flags+=("--bot")
+    local_nonpersistent_flags+=("--bot")
+    flags+=("--default-language=")
+    two_word_flags+=("--default-language")
+    local_nonpersistent_flags+=("--default-language=")
+    flags+=("--default-privacy=")
+    two_word_flags+=("--default-privacy")
+    local_nonpersistent_flags+=("--default-privacy=")
+    flags+=("--default-sensitive")
+    local_nonpersistent_flags+=("--default-sensitive")
+    flags+=("--display-name=")
+    two_word_flags+=("--display-name")
+    local_nonpersistent_flags+=("--display-name=")
+    flags+=("--header=")
+    two_word_flags+=("--header")
+    local_nonpersistent_flags+=("--header=")
+    flags+=("--locked")
+    local_nonpersistent_flags+=("--locked")
+    flags+=("--note=")
+    two_word_flags+=("--note")
+    local_nonpersistent_flags+=("--note=")
+    flags+=("--profile-field=")
+    two_word_flags+=("--profile-field")
+    local_nonpersistent_flags+=("--profile-field=")
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_account()
+{
+    last_command="madonctl_account"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("block")
+    commands+=("blocks")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("blocked")
+        aliashash["blocked"]="blocks"
+    fi
+    commands+=("favourites")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("favorited")
+        aliashash["favorited"]="favourites"
+        command_aliases+=("favorites")
+        aliashash["favorites"]="favourites"
+        command_aliases+=("favourited")
+        aliashash["favourited"]="favourites"
+    fi
+    commands+=("follow")
+    commands+=("follow-requests")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("follow-request")
+        aliashash["follow-request"]="follow-requests"
+        command_aliases+=("fr")
+        aliashash["fr"]="follow-requests"
+    fi
+    commands+=("followers")
+    commands+=("following")
+    commands+=("mute")
+    commands+=("mutes")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("muted")
+        aliashash["muted"]="mutes"
+    fi
+    commands+=("notifications")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("notif")
+        aliashash["notif"]="notifications"
+        command_aliases+=("notification")
+        aliashash["notification"]="notifications"
+    fi
+    commands+=("pin")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("endorse")
+        aliashash["endorse"]="pin"
+    fi
+    commands+=("pinned")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("get-endorsements")
+        aliashash["get-endorsements"]="pinned"
+        command_aliases+=("list-endorsements")
+        aliashash["list-endorsements"]="pinned"
+    fi
+    commands+=("relationships")
+    commands+=("reports")
+    commands+=("search")
+    commands+=("show")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("display")
+        aliashash["display"]="show"
+    fi
+    commands+=("statuses")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("st")
+        aliashash["st"]="statuses"
+    fi
+    commands+=("unblock")
+    commands+=("unfollow")
+    commands+=("unmute")
+    commands+=("unpin")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("disavow")
+        aliashash["disavow"]="unpin"
+    fi
+    commands+=("update")
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    flags+=("--all")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--user-id=")
+    two_word_flags+=("--user-id")
+    two_word_flags+=("-u")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_completion()
+{
+    last_command="madonctl_completion"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--help")
+    flags+=("-h")
+    local_nonpersistent_flags+=("--help")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    must_have_one_noun+=("bash")
+    must_have_one_noun+=("zsh")
+    noun_aliases=()
+}
+
+_madonctl_config_dump()
+{
+    last_command="madonctl_config_dump"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_config_themes()
+{
+    last_command="madonctl_config_themes"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_config_whoami()
+{
+    last_command="madonctl_config_whoami"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_config()
+{
+    last_command="madonctl_config"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("dump")
+    commands+=("themes")
+    commands+=("whoami")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("token")
+        aliashash["token"]="whoami"
+    fi
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_domain-blocks()
+{
+    last_command="madonctl_domain-blocks"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    local_nonpersistent_flags+=("--all")
+    flags+=("--block")
+    local_nonpersistent_flags+=("--block")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    local_nonpersistent_flags+=("--limit=")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    local_nonpersistent_flags+=("--max-id=")
+    flags+=("--show")
+    local_nonpersistent_flags+=("--show")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    local_nonpersistent_flags+=("--since-id=")
+    flags+=("--unblock")
+    local_nonpersistent_flags+=("--unblock")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_emojis_list()
+{
+    last_command="madonctl_emojis_list"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    local_nonpersistent_flags+=("--all")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    local_nonpersistent_flags+=("--keep=")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    local_nonpersistent_flags+=("--limit=")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_emojis()
+{
+    last_command="madonctl_emojis"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("list")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("display")
+        aliashash["display"]="list"
+        command_aliases+=("get")
+        aliashash["get"]="list"
+        command_aliases+=("show")
+        aliashash["show"]="list"
+    fi
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_instance_activity()
+{
+    last_command="madonctl_instance_activity"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_instance_peers()
+{
+    last_command="madonctl_instance_peers"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_instance()
+{
+    last_command="madonctl_instance"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("activity")
+    commands+=("peers")
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_lists_accounts()
+{
+    last_command="madonctl_lists_accounts"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--list-id=")
+    two_word_flags+=("--list-id")
+    two_word_flags+=("-G")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_lists_add-accounts()
+{
+    last_command="madonctl_lists_add-accounts"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    local_nonpersistent_flags+=("--account-id=")
+    flags+=("--account-ids=")
+    two_word_flags+=("--account-ids")
+    local_nonpersistent_flags+=("--account-ids=")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--list-id=")
+    two_word_flags+=("--list-id")
+    two_word_flags+=("-G")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_lists_create()
+{
+    last_command="madonctl_lists_create"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--title=")
+    two_word_flags+=("--title")
+    local_nonpersistent_flags+=("--title=")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--list-id=")
+    two_word_flags+=("--list-id")
+    two_word_flags+=("-G")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_lists_delete()
+{
+    last_command="madonctl_lists_delete"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--list-id=")
+    two_word_flags+=("--list-id")
+    two_word_flags+=("-G")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_lists_remove-accounts()
+{
+    last_command="madonctl_lists_remove-accounts"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    local_nonpersistent_flags+=("--account-id=")
+    flags+=("--account-ids=")
+    two_word_flags+=("--account-ids")
+    local_nonpersistent_flags+=("--account-ids=")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--list-id=")
+    two_word_flags+=("--list-id")
+    two_word_flags+=("-G")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_lists_show()
+{
+    last_command="madonctl_lists_show"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    local_nonpersistent_flags+=("--account-id=")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--list-id=")
+    two_word_flags+=("--list-id")
+    two_word_flags+=("-G")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_lists_update()
+{
+    last_command="madonctl_lists_update"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--title=")
+    two_word_flags+=("--title")
+    local_nonpersistent_flags+=("--title=")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--list-id=")
+    two_word_flags+=("--list-id")
+    two_word_flags+=("-G")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_lists()
+{
+    last_command="madonctl_lists"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("accounts")
+    commands+=("add-accounts")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("add-account")
+        aliashash["add-account"]="add-accounts"
+    fi
+    commands+=("create")
+    commands+=("delete")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("del")
+        aliashash["del"]="delete"
+        command_aliases+=("rm")
+        aliashash["rm"]="delete"
+    fi
+    commands+=("remove-accounts")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("remove-account")
+        aliashash["remove-account"]="remove-accounts"
+    fi
+    commands+=("show")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("display")
+        aliashash["display"]="show"
+        command_aliases+=("get")
+        aliashash["get"]="show"
+        command_aliases+=("ls")
+        aliashash["ls"]="show"
+    fi
+    commands+=("update")
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--list-id=")
+    two_word_flags+=("--list-id")
+    two_word_flags+=("-G")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_media()
+{
+    last_command="madonctl_media"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--description=")
+    two_word_flags+=("--description")
+    local_nonpersistent_flags+=("--description=")
+    flags+=("--file=")
+    two_word_flags+=("--file")
+    local_nonpersistent_flags+=("--file=")
+    flags+=("--focus=")
+    two_word_flags+=("--focus")
+    local_nonpersistent_flags+=("--focus=")
+    flags+=("--update=")
+    two_word_flags+=("--update")
+    local_nonpersistent_flags+=("--update=")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_oauth2_code()
+{
+    last_command="madonctl_oauth2_code"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_oauth2_get-url()
+{
+    last_command="madonctl_oauth2_get-url"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_oauth2()
+{
+    last_command="madonctl_oauth2"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("code")
+    commands+=("get-url")
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_search()
+{
+    last_command="madonctl_search"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--resolve")
+    local_nonpersistent_flags+=("--resolve")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_boost()
+{
+    last_command="madonctl_status_boost"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_card()
+{
+    last_command="madonctl_status_card"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_context()
+{
+    last_command="madonctl_status_context"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_delete()
+{
+    last_command="madonctl_status_delete"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_favourite()
+{
+    last_command="madonctl_status_favourite"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_favourited-by()
+{
+    last_command="madonctl_status_favourited-by"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_mute-conversation()
+{
+    last_command="madonctl_status_mute-conversation"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_pin()
+{
+    last_command="madonctl_status_pin"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_post()
+{
+    last_command="madonctl_status_post"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--add-mentions")
+    local_nonpersistent_flags+=("--add-mentions")
+    flags+=("--file=")
+    two_word_flags+=("--file")
+    two_word_flags+=("-f")
+    local_nonpersistent_flags+=("--file=")
+    flags+=("--in-reply-to=")
+    two_word_flags+=("--in-reply-to")
+    two_word_flags+=("-r")
+    local_nonpersistent_flags+=("--in-reply-to=")
+    flags+=("--media-ids=")
+    two_word_flags+=("--media-ids")
+    local_nonpersistent_flags+=("--media-ids=")
+    flags+=("--same-visibility")
+    local_nonpersistent_flags+=("--same-visibility")
+    flags+=("--sensitive")
+    local_nonpersistent_flags+=("--sensitive")
+    flags+=("--spoiler=")
+    two_word_flags+=("--spoiler")
+    local_nonpersistent_flags+=("--spoiler=")
+    flags+=("--stdin")
+    local_nonpersistent_flags+=("--stdin")
+    flags+=("--text-file=")
+    two_word_flags+=("--text-file")
+    local_nonpersistent_flags+=("--text-file=")
+    flags+=("--visibility=")
+    two_word_flags+=("--visibility")
+    flags_with_completion+=("--visibility")
+    flags_completion+=("__madonctl_visibility")
+    local_nonpersistent_flags+=("--visibility=")
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_reblogged-by()
+{
+    last_command="madonctl_status_reblogged-by"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_show()
+{
+    last_command="madonctl_status_show"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_unboost()
+{
+    last_command="madonctl_status_unboost"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_unfavourite()
+{
+    last_command="madonctl_status_unfavourite"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_unmute-conversation()
+{
+    last_command="madonctl_status_unmute-conversation"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status_unpin()
+{
+    last_command="madonctl_status_unpin"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_status()
+{
+    last_command="madonctl_status"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("boost")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("reblog")
+        aliashash["reblog"]="boost"
+    fi
+    commands+=("card")
+    commands+=("context")
+    commands+=("delete")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("rm")
+        aliashash["rm"]="delete"
+    fi
+    commands+=("favourite")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("fave")
+        aliashash["fave"]="favourite"
+        command_aliases+=("favorite")
+        aliashash["favorite"]="favourite"
+    fi
+    commands+=("favourited-by")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("favorited-by")
+        aliashash["favorited-by"]="favourited-by"
+    fi
+    commands+=("mute-conversation")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("mute")
+        aliashash["mute"]="mute-conversation"
+    fi
+    commands+=("pin")
+    commands+=("post")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("pouet")
+        aliashash["pouet"]="post"
+        command_aliases+=("toot")
+        aliashash["toot"]="post"
+    fi
+    commands+=("reblogged-by")
+    commands+=("show")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("display")
+        aliashash["display"]="show"
+    fi
+    commands+=("unboost")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("unreblog")
+        aliashash["unreblog"]="unboost"
+    fi
+    commands+=("unfavourite")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("unfave")
+        aliashash["unfave"]="unfavourite"
+        command_aliases+=("unfavorite")
+        aliashash["unfavorite"]="unfavourite"
+    fi
+    commands+=("unmute-conversation")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("unmute")
+        aliashash["unmute"]="unmute-conversation"
+    fi
+    commands+=("unpin")
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--all")
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    flags+=("--status-id=")
+    two_word_flags+=("--status-id")
+    two_word_flags+=("-s")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_stream()
+{
+    last_command="madonctl_stream"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--command=")
+    two_word_flags+=("--command")
+    local_nonpersistent_flags+=("--command=")
+    flags+=("--notification-types=")
+    two_word_flags+=("--notification-types")
+    local_nonpersistent_flags+=("--notification-types=")
+    flags+=("--notifications-only")
+    local_nonpersistent_flags+=("--notifications-only")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    must_have_one_noun+=("direct")
+    must_have_one_noun+=("public")
+    must_have_one_noun+=("user")
+    noun_aliases=()
+    noun_aliases+=("home")
+}
+
+_madonctl_suggestions_delete()
+{
+    last_command="madonctl_suggestions_delete"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--account-id=")
+    two_word_flags+=("--account-id")
+    two_word_flags+=("-a")
+    local_nonpersistent_flags+=("--account-id=")
+    flags+=("--account-ids=")
+    two_word_flags+=("--account-ids")
+    local_nonpersistent_flags+=("--account-ids=")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_suggestions_list()
+{
+    last_command="madonctl_suggestions_list"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    local_nonpersistent_flags+=("--keep=")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_suggestions()
+{
+    last_command="madonctl_suggestions"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("delete")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("del")
+        aliashash["del"]="delete"
+        command_aliases+=("remove")
+        aliashash["remove"]="delete"
+        command_aliases+=("rm")
+        aliashash["rm"]="delete"
+    fi
+    commands+=("list")
+    if [[ -z "${BASH_VERSION}" || "${BASH_VERSINFO[0]}" -gt 3 ]]; then
+        command_aliases+=("display")
+        aliashash["display"]="list"
+        command_aliases+=("get")
+        aliashash["get"]="list"
+        command_aliases+=("ls")
+        aliashash["ls"]="list"
+        command_aliases+=("show")
+        aliashash["show"]="list"
+    fi
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_timeline()
+{
+    last_command="madonctl_timeline"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--keep=")
+    two_word_flags+=("--keep")
+    two_word_flags+=("-k")
+    local_nonpersistent_flags+=("--keep=")
+    flags+=("--limit=")
+    two_word_flags+=("--limit")
+    two_word_flags+=("-l")
+    local_nonpersistent_flags+=("--limit=")
+    flags+=("--local")
+    local_nonpersistent_flags+=("--local")
+    flags+=("--max-id=")
+    two_word_flags+=("--max-id")
+    flags+=("--only-media")
+    local_nonpersistent_flags+=("--only-media")
+    flags+=("--since-id=")
+    two_word_flags+=("--since-id")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    must_have_one_noun+=("direct")
+    must_have_one_noun+=("home")
+    must_have_one_noun+=("public")
+    noun_aliases=()
+}
+
+_madonctl_toot()
+{
+    last_command="madonctl_toot"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--add-mentions")
+    local_nonpersistent_flags+=("--add-mentions")
+    flags+=("--file=")
+    two_word_flags+=("--file")
+    two_word_flags+=("-f")
+    local_nonpersistent_flags+=("--file=")
+    flags+=("--in-reply-to=")
+    two_word_flags+=("--in-reply-to")
+    two_word_flags+=("-r")
+    local_nonpersistent_flags+=("--in-reply-to=")
+    flags+=("--media-ids=")
+    two_word_flags+=("--media-ids")
+    local_nonpersistent_flags+=("--media-ids=")
+    flags+=("--same-visibility")
+    local_nonpersistent_flags+=("--same-visibility")
+    flags+=("--sensitive")
+    local_nonpersistent_flags+=("--sensitive")
+    flags+=("--spoiler=")
+    two_word_flags+=("--spoiler")
+    local_nonpersistent_flags+=("--spoiler=")
+    flags+=("--stdin")
+    local_nonpersistent_flags+=("--stdin")
+    flags+=("--text-file=")
+    two_word_flags+=("--text-file")
+    local_nonpersistent_flags+=("--text-file=")
+    flags+=("--visibility=")
+    two_word_flags+=("--visibility")
+    flags_with_completion+=("--visibility")
+    flags_completion+=("__madonctl_visibility")
+    local_nonpersistent_flags+=("--visibility=")
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_version()
+{
+    last_command="madonctl_version"
+
+    command_aliases=()
+
+    commands=()
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+_madonctl_root_command()
+{
+    last_command="madonctl"
+
+    command_aliases=()
+
+    commands=()
+    commands+=("account")
+    commands+=("completion")
+    commands+=("config")
+    commands+=("domain-blocks")
+    commands+=("emojis")
+    commands+=("instance")
+    commands+=("lists")
+    commands+=("media")
+    commands+=("oauth2")
+    commands+=("search")
+    commands+=("status")
+    commands+=("stream")
+    commands+=("suggestions")
+    commands+=("timeline")
+    commands+=("toot")
+    commands+=("version")
+
+    flags=()
+    two_word_flags=()
+    local_nonpersistent_flags=()
+    flags_with_completion=()
+    flags_completion=()
+
+    flags+=("--color=")
+    two_word_flags+=("--color")
+    flags_with_completion+=("--color")
+    flags_completion+=("__madonctl_color")
+    flags+=("--config=")
+    two_word_flags+=("--config")
+    flags+=("--instance=")
+    two_word_flags+=("--instance")
+    two_word_flags+=("-i")
+    flags+=("--login=")
+    two_word_flags+=("--login")
+    two_word_flags+=("-L")
+    flags+=("--output=")
+    two_word_flags+=("--output")
+    flags_with_completion+=("--output")
+    flags_completion+=("__madonctl_output")
+    two_word_flags+=("-o")
+    flags_with_completion+=("-o")
+    flags_completion+=("__madonctl_output")
+    flags+=("--password=")
+    two_word_flags+=("--password")
+    two_word_flags+=("-P")
+    flags+=("--template=")
+    two_word_flags+=("--template")
+    flags+=("--template-file=")
+    two_word_flags+=("--template-file")
+    flags+=("--theme=")
+    two_word_flags+=("--theme")
+    flags_with_completion+=("--theme")
+    flags_completion+=("__madonctl_theme")
+    flags+=("--token=")
+    two_word_flags+=("--token")
+    two_word_flags+=("-t")
+    flags+=("--verbose")
+    flags+=("-v")
+
+    must_have_one_flag=()
+    must_have_one_noun=()
+    noun_aliases=()
+}
+
+__start_madonctl()
+{
+    local cur prev words cword
+    declare -A flaghash 2>/dev/null || :
+    declare -A aliashash 2>/dev/null || :
+    if declare -F _init_completion >/dev/null 2>&1; then
+        _init_completion -s || return
+    else
+        __madonctl_init_completion -n "=" || return
+    fi
+
+    local c=0
+    local flags=()
+    local two_word_flags=()
+    local local_nonpersistent_flags=()
+    local flags_with_completion=()
+    local flags_completion=()
+    local commands=("madonctl")
+    local must_have_one_flag=()
+    local must_have_one_noun=()
+    local has_completion_function
+    local last_command
+    local nouns=()
+
+    __madonctl_handle_word
+}
+
+if [[ $(type -t compopt) = "builtin" ]]; then
+    complete -o default -F __start_madonctl madonctl
+else
+    complete -o default -o nospace -F __start_madonctl madonctl
+fi
+
+# ex: ts=4 sw=4 et filetype=sh
+
+BASH_COMPLETION_EOF
+}
+
+__madonctl_bash_source <(__madonctl_convert_bash_to_zsh)
+_complete madonctl
