@@ -1,0 +1,451 @@
+#compdef _containerlab containerlab
+
+
+function _containerlab {
+  local -a commands
+
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"' \
+    "1: :->cmnds" \
+    "*::arg:->args"
+
+  case $state in
+  cmnds)
+    commands=(
+      "completion:generate completion script"
+      "deploy:deploy a lab"
+      "destroy:destroy a lab"
+      "exec:execute a command on one or multiple containers"
+      "generate:generate a Clos topology file, based on provided flags"
+      "graph:generate a topology graph"
+      "help:Help about any command"
+      "inspect:inspect lab details"
+      "save:save containers configuration"
+      "tools:various tools your lab might need"
+      "version:show containerlab version or upgrade"
+    )
+    _describe "command" commands
+    ;;
+  esac
+
+  case "$words[1]" in
+  completion)
+    _containerlab_completion
+    ;;
+  deploy)
+    _containerlab_deploy
+    ;;
+  destroy)
+    _containerlab_destroy
+    ;;
+  exec)
+    _containerlab_exec
+    ;;
+  generate)
+    _containerlab_generate
+    ;;
+  graph)
+    _containerlab_graph
+    ;;
+  help)
+    _containerlab_help
+    ;;
+  inspect)
+    _containerlab_inspect
+    ;;
+  save)
+    _containerlab_save
+    ;;
+  tools)
+    _containerlab_tools
+    ;;
+  version)
+    _containerlab_version
+    ;;
+  esac
+}
+
+function _containerlab_completion {
+  _arguments \
+    '(-h --help)'{-h,--help}'[help for completion]' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"' \
+    '1: :("bash" "zsh" "fish")'
+}
+
+function _containerlab_deploy {
+  _arguments \
+    '(-g --graph)'{-g,--graph}'[generate topology graph]' \
+    '(-4 --ipv4-subnet)'{-4,--ipv4-subnet}'[management network IPv4 subnet range]:' \
+    '(-6 --ipv6-subnet)'{-6,--ipv6-subnet}'[management network IPv6 subnet range]:' \
+    '--max-workers[limit the maximum number of workers creating nodes and virtual wires]:' \
+    '--network[management network name]:' \
+    '--reconfigure[regenerate configuration artifacts and overwrite the previous ones if any]' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+function _containerlab_destroy {
+  _arguments \
+    '(-a --all)'{-a,--all}'[destroy all containerlab labs]' \
+    '--cleanup[delete lab directory]' \
+    '--graceful[attempt to stop containers before removing]' \
+    '--max-workers[limit the maximum number of workers deleteing nodes]:' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+function _containerlab_exec {
+  _arguments \
+    '*--label[labels to filter container subset]:' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+function _containerlab_generate {
+  _arguments \
+    '--deploy[deploy a fabric based on the generated topology file]' \
+    '--file[file path to save generated topology]:' \
+    '--group-prefix[prefix used in group names]:' \
+    '*--image[container image name, can be prefixed with the node kind. <kind>=<image_name>]:' \
+    '(-4 --ipv4-subnet)'{-4,--ipv4-subnet}'[management network IPv4 subnet range]:' \
+    '(-6 --ipv6-subnet)'{-6,--ipv6-subnet}'[management network IPv6 subnet range]:' \
+    '--kind[container kind, one of [srl ceos linux bridge sonic-vs crpd vr-sros vr-vmx vr-xrv9k]]:' \
+    '*--license[path to license file, can be prefix with the node kind. <kind>=/path/to/file]:' \
+    '--max-workers[limit the maximum number of workers creating nodes and virtual wires]:' \
+    '--network[management network name]:' \
+    '--node-prefix[prefix used in node names]:' \
+    '*--nodes[comma separated nodes definitions in format <num_nodes>:<kind>:<type>, each defining a Clos network stage]:' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+function _containerlab_graph {
+  _arguments \
+    '--dot[generate dot file instead of launching the web server]' \
+    '(-o --offline)'{-o,--offline}'[use only information from topo file when building graph]' \
+    '(-s --srv)'{-s,--srv}'[HTTP server address to view, customize and export your topology]:' \
+    '--template[Go html template used to generate the graph]:' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+function _containerlab_help {
+  _arguments \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+function _containerlab_inspect {
+  _arguments \
+    '(-a --all)'{-a,--all}'[show all deployed containerlab labs]' \
+    '--details[print all details of lab containers]' \
+    '(-f --format)'{-f,--format}'[output format. One of [table, json]]:' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+function _containerlab_save {
+  _arguments \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+
+function _containerlab_tools {
+  local -a commands
+
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"' \
+    "1: :->cmnds" \
+    "*::arg:->args"
+
+  case $state in
+  cmnds)
+    commands=(
+      "cert:TLS certificate operations"
+      "disable-tx-offload:disables tx checksum offload on eth0 interface of a container"
+      "mysocketio:Mysocket.io commands"
+      "veth:veth operations"
+      "vxlan:VxLAN interface commands"
+    )
+    _describe "command" commands
+    ;;
+  esac
+
+  case "$words[1]" in
+  cert)
+    _containerlab_tools_cert
+    ;;
+  disable-tx-offload)
+    _containerlab_tools_disable-tx-offload
+    ;;
+  mysocketio)
+    _containerlab_tools_mysocketio
+    ;;
+  veth)
+    _containerlab_tools_veth
+    ;;
+  vxlan)
+    _containerlab_tools_vxlan
+    ;;
+  esac
+}
+
+
+function _containerlab_tools_cert {
+  local -a commands
+
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"' \
+    "1: :->cmnds" \
+    "*::arg:->args"
+
+  case $state in
+  cmnds)
+    commands=(
+      "ca:certificate authority operations"
+      "sign:create and sign certificate"
+    )
+    _describe "command" commands
+    ;;
+  esac
+
+  case "$words[1]" in
+  ca)
+    _containerlab_tools_cert_ca
+    ;;
+  sign)
+    _containerlab_tools_cert_sign
+    ;;
+  esac
+}
+
+
+function _containerlab_tools_cert_ca {
+  local -a commands
+
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"' \
+    "1: :->cmnds" \
+    "*::arg:->args"
+
+  case $state in
+  cmnds)
+    commands=(
+      "create:create ca certificate and keys"
+    )
+    _describe "command" commands
+    ;;
+  esac
+
+  case "$words[1]" in
+  create)
+    _containerlab_tools_cert_ca_create
+    ;;
+  esac
+}
+
+function _containerlab_tools_cert_ca_create {
+  _arguments \
+    '--c[Country]:' \
+    '--cn[Common Name]:' \
+    '(-e --expiry)'{-e,--expiry}'[certificate validity period]:' \
+    '--l[Location]:' \
+    '--o[Organization]:' \
+    '--ou[Organization Unit]:' \
+    '(-p --path)'{-p,--path}'[path to write certificates to. Default is current working directory]:' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+function _containerlab_tools_cert_sign {
+  _arguments \
+    '--c[Country]:' \
+    '--ca-cert[Path to CA certificate]:' \
+    '--ca-key[Path to CA private key]:' \
+    '--cn[Common Name]:' \
+    '*--hosts[comma separate list of hosts of a certificate]:' \
+    '--l[Location]:' \
+    '--o[Organization]:' \
+    '--ou[Organization Unit]:' \
+    '(-p --path)'{-p,--path}'[path to write certificate and key to. Default is current working directory]:' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+function _containerlab_tools_disable-tx-offload {
+  _arguments \
+    '(-c --container)'{-c,--container}'[container name to disable offload in]:' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+
+function _containerlab_tools_mysocketio {
+  local -a commands
+
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"' \
+    "1: :->cmnds" \
+    "*::arg:->args"
+
+  case $state in
+  cmnds)
+    commands=(
+      "login:Logs in to mysocket.io service and saves a token to current working directory"
+    )
+    _describe "command" commands
+    ;;
+  esac
+
+  case "$words[1]" in
+  login)
+    _containerlab_tools_mysocketio_login
+    ;;
+  esac
+}
+
+function _containerlab_tools_mysocketio_login {
+  _arguments \
+    '(-e --email)'{-e,--email}'[Email address]:' \
+    '(-p --password)'{-p,--password}'[Password]:' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+
+function _containerlab_tools_veth {
+  local -a commands
+
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"' \
+    "1: :->cmnds" \
+    "*::arg:->args"
+
+  case $state in
+  cmnds)
+    commands=(
+      "create:Create a veth interface and attach its sides to the specified containers"
+    )
+    _describe "command" commands
+    ;;
+  esac
+
+  case "$words[1]" in
+  create)
+    _containerlab_tools_veth_create
+    ;;
+  esac
+}
+
+function _containerlab_tools_veth_create {
+  _arguments \
+    '(-a --a-endpoint)'{-a,--a-endpoint}'[veth endpoint A in the format of <containerA-name>:<interface-name> or <endpointA-type>:<endpoint-name>:<interface-name>]:' \
+    '(-b --b-endpoint)'{-b,--b-endpoint}'[veth endpoint B in the format of <containerB-name>:<interface-name> or <endpointB-type>:<endpoint-name>:<interface-name>]:' \
+    '(-m --mtu)'{-m,--mtu}'[link MTU]:' \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"'
+}
+
+
+function _containerlab_tools_vxlan {
+  local -a commands
+
+  _arguments -C \
+    '(-d --debug)'{-d,--debug}'[enable debug mode]' \
+    '(-n --name)'{-n,--name}'[lab name]:' \
+    '(-r --runtime)'{-r,--runtime}'[container runtime]:' \
+    '--timeout[timeout for docker requests, e.g: 30s, 1m, 2m30s]:' \
+    '(-t --topo)'{-t,--topo}'[path to the file with topology information]:filename:_files -g "*.yaml" -g "*.yml"' \
+    "1: :->cmnds" \
+    "*::arg:->args"
+
+  case $state in
+  cmnds)
+    commands=(
+      "create:create vxlan interface"
+      "delete:delete vxlan interface"
+    )
+    _describe "command" commands
+    ;;
+  esac
+
+  case "$words[1]" in
+  create)
+    _containerlab_tools_vxlan_create
+    ;;
+  delete)
+    _containerlab_tools_vxlan_delete
+    ;;
+  esac
+}
+
+function _containerlab_tools_vxlan_create {
+  _arguments
