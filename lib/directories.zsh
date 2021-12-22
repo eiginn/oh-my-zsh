@@ -33,6 +33,6 @@ compdef _dirs d
 
 # List directory contents
 alias lsa='ls -lah'
-alias l='ls -lah'
+alias l='ls -lh'
 alias ll='ls -lh'
 alias la='ls -lAh'
