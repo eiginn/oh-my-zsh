@@ -7,3 +7,4 @@ completions/_gopass
 completions/_kubectl
 # editor configs
 .vscode
+.idea
