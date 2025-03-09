@@ -8,3 +8,6 @@ completions/_kubectl
 # editor configs
 .vscode
 .idea
+
+# zcompile cached files
+*.zwc
