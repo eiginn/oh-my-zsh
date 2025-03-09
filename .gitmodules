@@ -1,0 +1,9 @@
+[submodule "custom/plugins/jq"]
+	path = custom/plugins/jq
+	url = https://github.com/reegnz/jq-zsh-plugin.git
+[submodule "custom/plugins/k"]
+	path = custom/plugins/k
+	url = https://github.com/supercrabtree/k
+[submodule "custom/plugins/zsh-histdb"]
+	path = custom/plugins/zsh-histdb
+	url = https://github.com/larkery/zsh-histdb
