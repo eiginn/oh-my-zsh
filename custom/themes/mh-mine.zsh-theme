@@ -15,6 +15,7 @@ return_code="%(?..%{$fg[red]%}%? ↵%{$reset_color%})"
 
 # prompt
 PROMPT='[%{$fg[$NCOLOR]%}%B%n%b%{$reset_color%}:%{$fg[blue]%}%B%60<...<%~%<<%b%{$reset_color%}]%(!.#.$) '
+PROMPT='[%{$fg[$NCOLOR]%}%B%n%{$fg[blue]%}@%{$fg[red]%}%M%b%{$reset_color%}:%{$fg[blue]%}%B%60<...<%~%<<%b%{$reset_color%}]%(!.#.$) '
 #RPROMPT='${return_code} $(git_prompt_info)'
 
 # git theming
