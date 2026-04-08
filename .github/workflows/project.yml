@@ -17,12 +17,12 @@ jobs:
     if: github.repository == 'ohmyzsh/ohmyzsh'
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
         with:
           egress-policy: audit
       - name: Authenticate as @ohmyzsh
         id: generate-token
-        uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
         with:
           app-id: ${{ secrets.OHMYZSH_APP_ID }}
           private-key: ${{ secrets.OHMYZSH_APP_PRIVATE_KEY }}
