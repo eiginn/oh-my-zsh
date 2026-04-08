@@ -1,0 +1,564 @@
+#compdef bmputil-cli
+
+autoload -U is-at-least
+
+_bmputil-cli() {
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" : \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+'-V[Print version]' \
+'--version[Print version]' \
+":: :_bmputil-cli_commands" \
+"*::: :->bmputil" \
+&& ret=0
+    case $state in
+    (bmputil)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:bmputil-cli-command-$line[1]:"
+        case $line[1] in
+            (probe)
+_arguments "${_arguments_options[@]}" : \
+'--allow-dangerous-options=[Allow usage of advanced, dangerous options that can result in unbootable devices (use with heavy caution!)]:ALLOW_DANGEROUS_OPTIONS:(never really)' \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+":: :_bmputil-cli__probe_commands" \
+"*::: :->probe" \
+&& ret=0
+
+    case $state in
+    (probe)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:bmputil-cli-probe-command-$line[1]:"
+        case $line[1] in
+            (info)
+_arguments "${_arguments_options[@]}" : \
+'--allow-dangerous-options=[Allow usage of advanced, dangerous options that can result in unbootable devices (use with heavy caution!)]:ALLOW_DANGEROUS_OPTIONS:(never really)' \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'--list-targets[List the target supported by a particular probe (if the firmware is new enough)]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(update)
+_arguments "${_arguments_options[@]}" : \
+'--override-firmware-type=[Flash the specified firmware space regardless of autodetected firmware type]:OVERRIDE_FIRMWARE_TYPE:(application bootloader)' \
+'--force-override-flash=[Forcibly override firmware type autodetection and Flash anyway (may result in an unbootable device!)]:FORCE_OVERRIDE_FLASH:_default' \
+'--allow-dangerous-options=[Allow usage of advanced, dangerous options that can result in unbootable devices (use with heavy caution!)]:ALLOW_DANGEROUS_OPTIONS:(never really)' \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'-f[Force the current latest release onto the probe even if the probe is running ostensibly newer firmware]' \
+'--force[Force the current latest release onto the probe even if the probe is running ostensibly newer firmware]' \
+'--use-rc[Allow the tool to use release candidates as possible upgrade targets when considering the latest release]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'::firmware_binary:_default' \
+":: :_bmputil-cli__probe__update_commands" \
+"*::: :->update" \
+&& ret=0
+
+    case $state in
+    (update)
+        words=($line[2] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:bmputil-cli-probe-update-command-$line[2]:"
+        case $line[2] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+'--allow-dangerous-options=[Allow usage of advanced, dangerous options that can result in unbootable devices (use with heavy caution!)]:ALLOW_DANGEROUS_OPTIONS:(never really)' \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_bmputil-cli__probe__update__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:bmputil-cli-probe-update-help-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(switch)
+_arguments "${_arguments_options[@]}" : \
+'--override-firmware-type=[Flash the specified firmware space regardless of autodetected firmware type]:OVERRIDE_FIRMWARE_TYPE:(application bootloader)' \
+'--force-override-flash=[Forcibly override firmware type autodetection and Flash anyway (may result in an unbootable device!)]:FORCE_OVERRIDE_FLASH:_default' \
+'--allow-dangerous-options=[Allow usage of advanced, dangerous options that can result in unbootable devices (use with heavy caution!)]:ALLOW_DANGEROUS_OPTIONS:(never really)' \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+&& ret=0
+;;
+(reboot)
+_arguments "${_arguments_options[@]}" : \
+'--allow-dangerous-options=[Allow usage of advanced, dangerous options that can result in unbootable devices (use with heavy caution!)]:ALLOW_DANGEROUS_OPTIONS:(never really)' \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'--dfu[]' \
+'--repeat[]' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_bmputil-cli__probe__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:bmputil-cli-probe-help-command-$line[1]:"
+        case $line[1] in
+            (info)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(update)
+_arguments "${_arguments_options[@]}" : \
+":: :_bmputil-cli__probe__help__update_commands" \
+"*::: :->update" \
+&& ret=0
+
+    case $state in
+    (update)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:bmputil-cli-probe-help-update-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(switch)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(reboot)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+;;
+(target)
+_arguments "${_arguments_options[@]}" : \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(server)
+_arguments "${_arguments_options[@]}" : \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(debug)
+_arguments "${_arguments_options[@]}" : \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+&& ret=0
+;;
+(complete)
+_arguments "${_arguments_options[@]}" : \
+'-s+[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--serial=[Use the device with the given serial number]:SERIAL_NUMBER:_default' \
+'--index=[Use the nth found device (may be unstable!)]:INDEX:_default' \
+'-p+[Use the device on the given USB port]:PORT:_default' \
+'--port=[Use the device on the given USB port]:PORT:_default' \
+'-h[Print help]' \
+'--help[Print help]' \
+':shell:(bash elvish fish powershell zsh)' \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+":: :_bmputil-cli__help_commands" \
+"*::: :->help" \
+&& ret=0
+
+    case $state in
+    (help)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:bmputil-cli-help-command-$line[1]:"
+        case $line[1] in
+            (probe)
+_arguments "${_arguments_options[@]}" : \
+":: :_bmputil-cli__help__probe_commands" \
+"*::: :->probe" \
+&& ret=0
+
+    case $state in
+    (probe)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:bmputil-cli-help-probe-command-$line[1]:"
+        case $line[1] in
+            (info)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(update)
+_arguments "${_arguments_options[@]}" : \
+":: :_bmputil-cli__help__probe__update_commands" \
+"*::: :->update" \
+&& ret=0
+
+    case $state in
+    (update)
+        words=($line[1] "${words[@]}")
+        (( CURRENT += 1 ))
+        curcontext="${curcontext%:*:*}:bmputil-cli-help-probe-update-command-$line[1]:"
+        case $line[1] in
+            (list)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(switch)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(reboot)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+(target)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(server)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(debug)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(complete)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+(help)
+_arguments "${_arguments_options[@]}" : \
+&& ret=0
+;;
+        esac
+    ;;
+esac
+;;
+        esac
+    ;;
+esac
+}
+
+(( $+functions[_bmputil-cli_commands] )) ||
+_bmputil-cli_commands() {
+    local commands; commands=(
+'probe:Actions to be performed against a probe' \
+'target:Actions to be performed against a target connected to a probe' \
+'server:Actions that run the tool as a debug/tracing server' \
+'debug:Actions that run debugging commands against a target connected to a probe' \
+'complete:Generate completions data for the shell' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'bmputil-cli commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__complete_commands] )) ||
+_bmputil-cli__complete_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli complete commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__debug_commands] )) ||
+_bmputil-cli__debug_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli debug commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help_commands] )) ||
+_bmputil-cli__help_commands() {
+    local commands; commands=(
+'probe:Actions to be performed against a probe' \
+'target:Actions to be performed against a target connected to a probe' \
+'server:Actions that run the tool as a debug/tracing server' \
+'debug:Actions that run debugging commands against a target connected to a probe' \
+'complete:Generate completions data for the shell' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'bmputil-cli help commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__complete_commands] )) ||
+_bmputil-cli__help__complete_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli help complete commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__debug_commands] )) ||
+_bmputil-cli__help__debug_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli help debug commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__help_commands] )) ||
+_bmputil-cli__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli help help commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__probe_commands] )) ||
+_bmputil-cli__help__probe_commands() {
+    local commands; commands=(
+'info:Print information about connected Black Magic Probe devices' \
+'update:Update the firmware running on a Black Magic Probe' \
+'switch:Switch the firmware being used on a given probe' \
+'reboot:Reboot a Black Magic Probe (potentially into its bootloader)' \
+    )
+    _describe -t commands 'bmputil-cli help probe commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__probe__info_commands] )) ||
+_bmputil-cli__help__probe__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli help probe info commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__probe__reboot_commands] )) ||
+_bmputil-cli__help__probe__reboot_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli help probe reboot commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__probe__switch_commands] )) ||
+_bmputil-cli__help__probe__switch_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli help probe switch commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__probe__update_commands] )) ||
+_bmputil-cli__help__probe__update_commands() {
+    local commands; commands=(
+'list:List available releases and firmware that can be downloaded' \
+    )
+    _describe -t commands 'bmputil-cli help probe update commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__probe__update__list_commands] )) ||
+_bmputil-cli__help__probe__update__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli help probe update list commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__server_commands] )) ||
+_bmputil-cli__help__server_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli help server commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__help__target_commands] )) ||
+_bmputil-cli__help__target_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli help target commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe_commands] )) ||
+_bmputil-cli__probe_commands() {
+    local commands; commands=(
+'info:Print information about connected Black Magic Probe devices' \
+'update:Update the firmware running on a Black Magic Probe' \
+'switch:Switch the firmware being used on a given probe' \
+'reboot:Reboot a Black Magic Probe (potentially into its bootloader)' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'bmputil-cli probe commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__help_commands] )) ||
+_bmputil-cli__probe__help_commands() {
+    local commands; commands=(
+'info:Print information about connected Black Magic Probe devices' \
+'update:Update the firmware running on a Black Magic Probe' \
+'switch:Switch the firmware being used on a given probe' \
+'reboot:Reboot a Black Magic Probe (potentially into its bootloader)' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'bmputil-cli probe help commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__help__help_commands] )) ||
+_bmputil-cli__probe__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe help help commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__help__info_commands] )) ||
+_bmputil-cli__probe__help__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe help info commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__help__reboot_commands] )) ||
+_bmputil-cli__probe__help__reboot_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe help reboot commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__help__switch_commands] )) ||
+_bmputil-cli__probe__help__switch_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe help switch commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__help__update_commands] )) ||
+_bmputil-cli__probe__help__update_commands() {
+    local commands; commands=(
+'list:List available releases and firmware that can be downloaded' \
+    )
+    _describe -t commands 'bmputil-cli probe help update commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__help__update__list_commands] )) ||
+_bmputil-cli__probe__help__update__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe help update list commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__info_commands] )) ||
+_bmputil-cli__probe__info_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe info commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__reboot_commands] )) ||
+_bmputil-cli__probe__reboot_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe reboot commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__switch_commands] )) ||
+_bmputil-cli__probe__switch_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe switch commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__update_commands] )) ||
+_bmputil-cli__probe__update_commands() {
+    local commands; commands=(
+'list:List available releases and firmware that can be downloaded' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'bmputil-cli probe update commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__update__help_commands] )) ||
+_bmputil-cli__probe__update__help_commands() {
+    local commands; commands=(
+'list:List available releases and firmware that can be downloaded' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'bmputil-cli probe update help commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__update__help__help_commands] )) ||
+_bmputil-cli__probe__update__help__help_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe update help help commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__update__help__list_commands] )) ||
+_bmputil-cli__probe__update__help__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe update help list commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__probe__update__list_commands] )) ||
+_bmputil-cli__probe__update__list_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli probe update list commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__server_commands] )) ||
+_bmputil-cli__server_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli server commands' commands "$@"
+}
+(( $+functions[_bmputil-cli__target_commands] )) ||
+_bmputil-cli__target_commands() {
+    local commands; commands=()
+    _describe -t commands 'bmputil-cli target commands' commands "$@"
+}
+
+if [ "$funcstack[1]" = "_bmputil-cli" ]; then
+    _bmputil-cli "$@"
+else
+    compdef _bmputil-cli bmputil-cli
+fi

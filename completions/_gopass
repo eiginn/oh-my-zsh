@@ -11,10 +11,12 @@ _gopass () {
 	  age)
 	      local -a subcommands
 	      subcommands=(
+	      "agent:Manage the age agent"
 	      "identities:List age identities used for decryption and encryption"
+	      "lock:Lock the age agent"
 	      )
 	      _describe -t commands "gopass age" subcommands
-	      
+	      _arguments : "--age-ssh-key-path[Custom path to SSH key or directory for age backend]"
 	      
 	      
 	      ;;
@@ -34,7 +36,7 @@ _gopass () {
 	      
 	      ;;
 	  clone)
-	      _arguments : "--path[Path to clone the repo to]" "--crypto[Select crypto backend \[age gpgcli plain\]]" "--storage[Select storage backend \[fossilfs gitfs\]]" "--check-keys[Check for valid decryption keys. Generate new keys if none are found.]"
+	      _arguments : "--path[Path to clone the repo to]" "--crypto[Select crypto backend \[age gpgcli plain\]]" "--storage[Select storage backend \[cryptfs fossilfs gitfs jjfs\]]" "--check-keys[Check for valid decryption keys. Generate new keys if none are found.]"
 	      
 	      
 	      ;;
@@ -58,12 +60,12 @@ _gopass () {
 	      
 	      ;;
 	  convert)
-	      _arguments : "--store[Specify which store to convert]" "--move[Replace store?]" "--crypto[Which crypto backend? \[age gpgcli plain\]]" "--storage[Which storage backend? \[fossilfs fs gitfs\]]"
+	      _arguments : "--store[Specify which store to convert]" "--move[Replace store?]" "--crypto[Which crypto backend? \[age gpgcli plain\]]" "--storage[Which storage backend? \[cryptfs fossilfs fs gitfs jjfs\]]"
 	      
 	      
 	      ;;
 	  copy|cp)
-	      _arguments : "--force[Force to copy the secret and overwrite existing one]"
+	      _arguments : "--force[Force to copy the secret and overwrite existing one]" "--commit-message[Set the commit message]" "--interactive-commit[Open an editor for the commit message]"
 	      
 	      _gopass_complete_passwords
 	      ;;
@@ -73,12 +75,12 @@ _gopass () {
 	      
 	      ;;
 	  delete|remove|rm)
-	      _arguments : "--recursive[Recursive delete files and folders]" "--force[Force to delete the secret]"
+	      _arguments : "--recursive[Recursive delete files and folders]" "--force[Force to delete the secret]" "--commit-message[Set the commit message]" "--interactive-commit[Open an editor for the commit message]"
 	      
 	      _gopass_complete_passwords
 	      ;;
 	  edit|set)
-	      _arguments : "--editor[Use this editor binary]" "--create[Create a new secret if none found]"
+	      _arguments : "--editor[Use this editor binary]" "--create[Create a new secret if none found]" "--commit-message[Set the commit message]" "--interactive-commit[Open an editor for the commit message]"
 	      
 	      _gopass_complete_passwords
 	      ;;
@@ -88,7 +90,7 @@ _gopass () {
 	      
 	      ;;
 	  find|search)
-	      _arguments : "--unsafe[In the case of an exact match, display the password even if safecontent is enabled]"
+	      _arguments : "--unsafe[In the case of an exact match, display the password even if safecontent is enabled]" "--regex[Interpret pattern as regular expression]"
 	      
 	      
 	      ;;
@@ -108,7 +110,7 @@ _gopass () {
 	      
 	      ;;
 	  generate)
-	      _arguments : "--clip[Copy the generated password to the clipboard]" "--print[Print the generated password to the terminal]" "--force[Force to overwrite existing password]" "--edit[Open secret for editing after generating a password]" "--symbols[Use symbols in the password]" "--generator[Choose a password generator, use one of: cryptic, memorable, xkcd or external. Default: cryptic]" "--strict[Require strict character class rules]" "--force-regen[Force full re-generation, incl. evaluation of templates. Will overwrite the entire secret!]" "--sep[Word separator for generated passwords. If no separator is specified, the words are combined without spaces/separator and the first character of words is capitalised.]" "--lang[Language to generate password from, currently only en (english, default) or de are supported]"
+	      _arguments : "--clip[Copy the generated password to the clipboard]" "--print[Print the generated password to the terminal]" "--force[Force to overwrite existing password]" "--edit[Open secret for editing after generating a password]" "--symbols[Use symbols in the password]" "--generator[Choose a password generator, use one of: cryptic, memorable, xkcd or external. Default: cryptic]" "--strict[Require strict character class rules]" "--force-regen[Force full re-generation, incl. evaluation of templates. Will overwrite the entire secret!]" "--sep[Word separator for generated passwords. If no separator is specified, the words are combined without spaces/separator and the first character of words is capitalised.]" "--lang[Language to generate password from, currently only en (english, default) or de are supported]" "--commit-message[Set the commit message]" "--interactive-commit[Open an editor for the commit message]"
 	      _gopass_complete_folders
 	      _gopass_complete_passwords
 	      ;;
@@ -128,12 +130,12 @@ _gopass () {
 	      
 	      ;;
 	  init)
-	      _arguments : "--path[Set the sub-store path to operate on]" "--store[Set the name of the sub-store]" "--crypto[Select crypto backend \[age gpgcli plain\]]" "--storage[Select storage backend \[fossilfs fs gitfs\]]"
+	      _arguments : "--path[Set the sub-store path to operate on]" "--store[Set the name of the sub-store]" "--crypto[Select crypto backend \[age gpgcli plain\]]" "--storage[Select storage backend \[cryptfs fossilfs fs gitfs jjfs\]]"
 	      
 	      
 	      ;;
 	  insert)
-	      _arguments : "--echo[Display secret while typing]" "--multiline[Insert using $EDITOR]" "--force[Overwrite any existing secret and do not prompt to confirm recipients]" "--append[Append data read from STDIN to existing data]"
+	      _arguments : "--echo[Display secret while typing]" "--multiline[Insert using $EDITOR]" "--force[Overwrite any existing secret and do not prompt to confirm recipients]" "--append[Append data read from STDIN to existing data]" "--commit-message[Set the commit message]" "--interactive-commit[Open an editor for the commit message]"
 	      _gopass_complete_folders
 	      _gopass_complete_passwords
 	      ;;
@@ -165,12 +167,12 @@ _gopass () {
 	      
 	      ;;
 	  move|mv)
-	      _arguments : "--force[Force to move the secret and overwrite existing one]"
+	      _arguments : "--force[Force to move the secret and overwrite existing one]" "--commit-message[Set the commit message]" "--interactive-commit[Open an editor for the commit message]"
 	      
 	      _gopass_complete_passwords
 	      ;;
 	  otp|totp|hotp)
-	      _arguments : "--clip[Copy the time-based token into the clipboard]" "--qr[Write QR code to FILE]" "--password[Only display the token]" "--snip[Scan screen content to insert a OTP QR code into provided entry]"
+	      _arguments : "--alsoclip[Copy the time-based token and show it]" "--clip[Copy the time-based token into the clipboard]" "--qr[Write QR code to FILE]" "--chained[chain the token to the password]" "--password[Only display the token]" "--snip[Scan screen content to insert a OTP QR code into provided entry]"
 	      
 	      _gopass_complete_passwords
 	      ;;
@@ -207,8 +209,13 @@ _gopass () {
 	      
 	      
 	      ;;
+	  reorg)
+	      
+	      
+	      
+	      ;;
 	  setup)
-	      _arguments : "--remote[URL to a git remote, will attempt to join this team]" "--alias[Local mount point for the given remote]" "--create[Create a new team (default: false, i.e. join an existing team)]" "--name[Firstname and Lastname for unattended GPG key generation]" "--email[EMail for unattended GPG key generation]" "--crypto[Select crypto backend \[age gpgcli plain\]]" "--storage[Select storage backend \[fossilfs fs gitfs\]]"
+	      _arguments : "--remote[URL to a git remote, will attempt to join this team]" "--alias[Local mount point for the given remote]" "--create[Create a new team (default: false, i.e. join an existing team)]" "--name[Firstname and Lastname for unattended GPG key generation]" "--email[EMail for unattended GPG key generation]" "--crypto[Select crypto backend \[age gpgcli plain\]]" "--storage[Select storage backend \[cryptfs fossilfs fs gitfs jjfs\]]"
 	      
 	      
 	      ;;
@@ -299,6 +306,7 @@ _gopass () {
 	  "pwgen:Generate passwords"
 	  "rcs:Run a RCS command inside a password store"
 	  "recipients:Edit recipient permissions"
+	  "reorg:Reorganize a password store by editing a text file"
 	  "setup:Initialize a new password store"
 	  "show:Display the content of a secret"
 	  "sum:Compute the SHA256 checksum"
