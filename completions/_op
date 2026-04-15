@@ -1,1789 +1,212 @@
-#compdef _op op
-
-
-function _op {
-  local -a commands
-
-  _arguments -C \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '(-h --help)'{-h,--help}'[get help for op]' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "account:Manage your locally configured 1Password accounts"
-      "completion:Generate shell completion information"
-      "connect:Manage the Connect instances and Connect tokens in your 1Password account."
-      "document:Perform CRUD operations on the DOCUMENT type items in your vaults."
-      "events-api:Manage Events API integrations in your 1Password account."
-      "group:Perform CRUD operations on the groups of users in your 1Password account."
-      "help:Get help for a command"
-      "inject:Inject secrets into a config file"
-      "item:Perform CRUD operations on the 1Password items in your vaults."
-      "read:Read a secret using the secrets reference syntax"
-      "run:Pass secrets as environment variables to a process"
-      "signin:Sign in to a 1Password account"
-      "signout:Sign out of a 1Password account"
-      "update:Check for and download updates"
-      "user:Manage the users within this 1Password account."
-      "vault:Manage permissions and perform CRUD operations on your 1Password vaults."
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  account)
-    _op_account
-    ;;
-  completion)
-    _op_completion
-    ;;
-  connect)
-    _op_connect
-    ;;
-  document)
-    _op_document
-    ;;
-  events-api)
-    _op_events-api
-    ;;
-  group)
-    _op_group
-    ;;
-  help)
-    _op_help
-    ;;
-  inject)
-    _op_inject
-    ;;
-  item)
-    _op_item
-    ;;
-  read)
-    _op_read
-    ;;
-  run)
-    _op_run
-    ;;
-  signin)
-    _op_signin
-    ;;
-  signout)
-    _op_signout
-    ;;
-  update)
-    _op_update
-    ;;
-  user)
-    _op_user
-    ;;
-  vault)
-    _op_vault
-    ;;
-  esac
-}
-
-
-function _op_account {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with account]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "forget:Remove a 1Password account from this device"
-      "get:Get details about your account"
-      "list:List users and accounts set up on this device"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  forget)
-    _op_account_forget
-    ;;
-  get)
-    _op_account_get
-    ;;
-  list)
-    _op_account_list
-    ;;
-  esac
-}
-
-function _op_account_forget {
-  _arguments \
-    '--all[forget all authenticated accounts]' \
-    '(-h --help)'{-h,--help}'[get help with account forget]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_account_get {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with account get]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_account_list {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with account list]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_completion {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with completion]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_connect {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with connect]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "group:Manage group access to Secrets Automation"
-      "server:Manage Connect servers"
-      "token:Manage Connect tokens"
-      "vault:Manage connect server vault access"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  group)
-    _op_connect_group
-    ;;
-  server)
-    _op_connect_server
-    ;;
-  token)
-    _op_connect_token
-    ;;
-  vault)
-    _op_connect_vault
-    ;;
-  esac
-}
-
-
-function _op_connect_group {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with connect group]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "grant:Grant a group access to manage Secrets Automation"
-      "revoke:Revoke a group's access to manage Secrets Automation"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  grant)
-    _op_connect_group_grant
-    ;;
-  revoke)
-    _op_connect_group_revoke
-    ;;
-  esac
-}
-
-function _op_connect_group_grant {
-  _arguments \
-    '--all-servers[grant access to all current and future servers in the authenticated account]' \
-    '--group[the `group` to receive access]:' \
-    '(-h --help)'{-h,--help}'[get help with connect group grant]' \
-    '--server[the `server` to grant access to]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_connect_group_revoke {
-  _arguments \
-    '--all-servers[revoke access to all current and future servers in the authenticated account]' \
-    '--group[the `group` to revoke access from]:' \
-    '(-h --help)'{-h,--help}'[get help with connect group revoke]' \
-    '--server[the `server` to revoke access to]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_connect_server {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with connect server]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "create:Set up a Connect server"
-      "delete:Remove a Connect server"
-      "edit:Rename a Connect server"
-      "get:Get a Connect server"
-      "list:List Connect servers"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  create)
-    _op_connect_server_create
-    ;;
-  delete)
-    _op_connect_server_delete
-    ;;
-  edit)
-    _op_connect_server_edit
-    ;;
-  get)
-    _op_connect_server_get
-    ;;
-  list)
-    _op_connect_server_list
-    ;;
-  esac
-}
-
-function _op_connect_server_create {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with connect server create]' \
-    '*--vaults[grant the Connect server access to these vaults]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_connect_server_delete {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with connect server delete]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_connect_server_edit {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with connect server edit]' \
-    '--name[change the server'\''s `name`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_connect_server_get {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with connect server get]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_connect_server_list {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with connect server list]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_connect_token {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with connect token]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "create:Issue a token for a 1Password Connect server"
-      "delete:Revoke a token for a Connect server"
-      "edit:Rename a Connect token"
-      "list:Get a list of tokens"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  create)
-    _op_connect_token_create
-    ;;
-  delete)
-    _op_connect_token_delete
-    ;;
-  edit)
-    _op_connect_token_edit
-    ;;
-  list)
-    _op_connect_token_list
-    ;;
-  esac
-}
-
-function _op_connect_token_create {
-  _arguments \
-    '--expires-in[set how long the Connect token is valid for in (s)econds, (m)inutes, or (h)ours]:' \
-    '(-h --help)'{-h,--help}'[get help with connect token create]' \
-    '--server[issue a token for this server]:' \
-    '*--vaults[issue a token on these vaults]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_connect_token_delete {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with connect token delete]' \
-    '--server[only look for tokens for this 1Password Connect server]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_connect_token_edit {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with connect token edit]' \
-    '--name[change the token'\''s name]:' \
-    '--server[only look for tokens for this 1Password Connect server]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_connect_token_list {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with connect token list]' \
-    '--server[only list tokens for this Connect `server`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_connect_vault {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with connect vault]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "grant:Grant a Connect server access to a vault"
-      "revoke:Revoke a Connect server's access to a vault"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  grant)
-    _op_connect_vault_grant
-    ;;
-  revoke)
-    _op_connect_vault_revoke
-    ;;
-  esac
-}
-
-function _op_connect_vault_grant {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with connect vault grant]' \
-    '--server[the server to be granted access]:' \
-    '--vault[the vault to grant access to]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_connect_vault_revoke {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with connect vault revoke]' \
-    '--server[the `server` to revoke access from]:' \
-    '--vault[the `vault` to revoke a server'\''s access to]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_document {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with document]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "create:Create a document item"
-      "delete:Delete or archive a document item"
-      "edit:Edit a document item"
-      "get:Download a document"
-      "list:Get a list of documents"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  create)
-    _op_document_create
-    ;;
-  delete)
-    _op_document_delete
-    ;;
-  edit)
-    _op_document_edit
-    ;;
-  get)
-    _op_document_get
-    ;;
-  list)
-    _op_document_list
-    ;;
-  esac
-}
-
-function _op_document_create {
-  _arguments \
-    '--file-name[set the file'\''s `name`]:' \
-    '(-h --help)'{-h,--help}'[get help with document create]' \
-    '--tags[set the tags to the specified (comma-separated) values]:' \
-    '--title[set the document item'\''s `title`]:' \
-    '--vault[save the document in this `vault` - default: Private]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_document_delete {
-  _arguments \
-    '--archive[move the document to the Archive]' \
-    '(-h --help)'{-h,--help}'[get help with document delete]' \
-    '--vault[delete the document in this `vault`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_document_edit {
-  _arguments \
-    '--file-name[set the file'\''s `name`]:' \
-    '(-h --help)'{-h,--help}'[get help with document edit]' \
-    '--tags[set the tags to the specified (comma-separated) values, an empty value will remove all tags]:' \
-    '--title[set the document item'\''s `title`]:' \
-    '--vault[look up document in this `vault`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_document_get {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with document get]' \
-    '--include-archive[include document items in the Archive]' \
-    '--output[save the document to the file `path` instead of stdout]:' \
-    '--vault[look for the document in this `vault`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_document_list {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with document list]' \
-    '--include-archive[include document items in the Archive]' \
-    '--vault[only list documents in this `vault`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_events-api {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with events-api]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "create:Set up an integration with the Events API"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  create)
-    _op_events-api_create
-    ;;
-  esac
-}
-
-function _op_events-api_create {
-  _arguments \
-    '--expires-in[set how the long the events-api token is valid for in (s)econds, (m)inutes, or (h)ours]:' \
-    '*--features[set the comma-separated list of `features` the integration token can be used for. Options: `signinattempts`, `itemusages`]:' \
-    '(-h --help)'{-h,--help}'[get help with events-api create]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_group {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with group]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "create:Create a group."
-      "delete:Remove a group."
-      "edit:Edit a group's name or description"
-      "get:Get details about a group"
-      "list:List groups"
-      "user:Manage users in groups"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  create)
-    _op_group_create
-    ;;
-  delete)
-    _op_group_delete
-    ;;
-  edit)
-    _op_group_edit
-    ;;
-  get)
-    _op_group_get
-    ;;
-  list)
-    _op_group_list
-    ;;
-  user)
-    _op_group_user
-    ;;
-  esac
-}
-
-function _op_group_create {
-  _arguments \
-    '--description[set the group'\''s description]:' \
-    '(-h --help)'{-h,--help}'[get help with group create]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_group_delete {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with group delete]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_group_edit {
-  _arguments \
-    '--description[change the group'\''s `description`]:' \
-    '(-h --help)'{-h,--help}'[get help with group edit]' \
-    '--name[change the group'\''s `name`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_group_get {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with group get]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_group_list {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with group list]' \
-    '--user[list groups that a `user` belongs to]:' \
-    '--vault[list groups that have direct access to a `vault`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_group_user {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with group user]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "grant:Grant a user access to a group"
-      "list:Retrieve the users that belong to a group"
-      "revoke:Revoke a user's access to a vault or group"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  grant)
-    _op_group_user_grant
-    ;;
-  list)
-    _op_group_user_list
-    ;;
-  revoke)
-    _op_group_user_revoke
-    ;;
-  esac
-}
-
-function _op_group_user_grant {
-  _arguments \
-    '--group[specify the group to grant the user access to]:' \
-    '(-h --help)'{-h,--help}'[get help with group user grant]' \
-    '--role[specify the user'\''s role as a member or manager - default: member]:' \
-    '--user[specify the user to grant group access to]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_group_user_list {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with group user list]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_group_user_revoke {
-  _arguments \
-    '--group[change the group'\''s `name`]:' \
-    '(-h --help)'{-h,--help}'[get help with group user revoke]' \
-    '--user[change the group'\''s `description`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_help {
-  _arguments \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_inject {
-  _arguments \
-    '--file-mode[Set filemode for the output file if it does not yet exist. It is ignored without the --out-file flag.]:' \
-    '(-h --help)'{-h,--help}'[get help with inject]' \
-    '(-i --in-file)'{-i,--in-file}'[The filename of a template file to inject.]:' \
-    '(-o --out-file)'{-o,--out-file}'[Write the injected template to a file instead of stdout.]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_item {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with item]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "create:Create an item"
-      "delete:Delete or archive an item"
-      "edit:Edit an item's details"
-      "get:Get an item's details"
-      "list:List items"
-      "share:Share an item"
-      "template:Manage templates"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  create)
-    _op_item_create
-    ;;
-  delete)
-    _op_item_delete
-    ;;
-  edit)
-    _op_item_edit
-    ;;
-  get)
-    _op_item_get
-    ;;
-  list)
-    _op_item_list
-    ;;
-  share)
-    _op_item_share
-    ;;
-  template)
-    _op_item_template
-    ;;
-  esac
-}
-
-function _op_item_create {
-  _arguments \
-    '--category[set the item'\''s `category`]:' \
-    '--dry-run[perform a dry run of the command and output a preview of the resulting item]' \
-    '--generate-password[give the item a randomly generated password]' \
-    '(-h --help)'{-h,--help}'[get help with item create]' \
-    '--tags[set the tags to the specified (comma-separated) values]:' \
-    '--template[specify the filepath to read an item template from]:' \
-    '--title[set the item'\''s `title`]:' \
-    '--url[set the `URL` associated with the item]:' \
-    '--vault[save the item in this `vault` - default: Private]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_item_delete {
-  _arguments \
-    '--archive[move the item to the Archive]' \
-    '(-h --help)'{-h,--help}'[get help with item delete]' \
-    '--vault[look for the item in this vault]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_item_edit {
-  _arguments \
-    '--dry-run[perform a dry run of the command and output a preview of the resulting item]' \
-    '--generate-password[give the item a randomly generated password]' \
-    '(-h --help)'{-h,--help}'[get help with item edit]' \
-    '--tags[set the tags to the specified (comma-separated) values, an empty value will remove all tags]:' \
-    '--title[set the item'\''s `title`]:' \
-    '--url[set the `URL` associated with the item]:' \
-    '--vault[save the item in this `vault`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_item_get {
-  _arguments \
-    '*--fields[only return data from these `fields`. Use `label=` to get the field by name or `type=` to filter fields by type]:' \
-    '(-h --help)'{-h,--help}'[get help with item get]' \
-    '--include-archive[include items in the Archive]' \
-    '--share-link[get a shareable link for the item]' \
-    '--vault[look for the item in this `vault`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_item_list {
-  _arguments \
-    '*--categories[only list items in these `categories` (comma-separated)]:' \
-    '(-h --help)'{-h,--help}'[get help with item list]' \
-    '--include-archive[include items in the Archive]' \
-    '*--tags[only list items with these `tags` (comma-separated)]:' \
-    '--vault[only list items in this `vault`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_item_share {
-  _arguments \
-    '*--emails[email addresses to share with]:' \
-    '--expiry[link expiring after the specified duration in (s)econds, (m)inutes, or (h)ours (default 7h)]:' \
-    '(-h --help)'{-h,--help}'[get help with item share]' \
-    '--vault[look for the item in this vault]:' \
-    '--view-once[expire link after a single view]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_item_template {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with item template]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "get:Get an item template"
-      "list:Get a list of templates"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  get)
-    _op_item_template_get
-    ;;
-  list)
-    _op_item_template_list
-    ;;
-  esac
-}
-
-function _op_item_template_get {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with item template get]' \
-    '(-o --out-file)'{-o,--out-file}'[Write the template to a file instead of stdout.]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_item_template_list {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with item template list]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_read {
-  _arguments \
-    '--file-mode[Set filemode for the output file if it does not yet exist. It is ignored without the --out-file flag.]:' \
-    '(-h --help)'{-h,--help}'[get help with read]' \
-    '(-n --no-newline)'{-n,--no-newline}'[Do not print a new line after the secret.]' \
-    '(-o --out-file)'{-o,--out-file}'[Write the secret to a file instead of stdout.]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_run {
-  _arguments \
-    '*--env-file[Enable Dotenv integration with specific Dotenv files to parse, e.g. --env-file=.env]:' \
-    '(-h --help)'{-h,--help}'[get help with run]' \
-    '--no-masking[Disable masking of secrets on stdout and stderr]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_signin {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with signin]' \
-    '(-l --list)'{-l,--list}'[list accounts set up on this device]' \
-    '(-r --raw)'{-r,--raw}'[only return the session token]' \
-    '--shorthand[set the short account `name`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_signout {
-  _arguments \
-    '--forget[remove the details for a 1Password account from this device]' \
-    '(-h --help)'{-h,--help}'[get help with signout]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_update {
-  _arguments \
-    '--directory[download the update to this `path`]:' \
-    '(-h --help)'{-h,--help}'[get help with update]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_user {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with user]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "confirm:Confirm a user"
-      "delete:Remove a user and all their data from the account"
-      "edit:Edit a user's name or Travel Mode status"
-      "get:Get details about a user"
-      "invite:Invite a user to the authenticated account"
-      "list:List users"
-      "reactivate:Reactivate a suspended user"
-      "suspend:Suspend a user"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  confirm)
-    _op_user_confirm
-    ;;
-  delete)
-    _op_user_delete
-    ;;
-  edit)
-    _op_user_edit
-    ;;
-  get)
-    _op_user_get
-    ;;
-  invite)
-    _op_user_invite
-    ;;
-  list)
-    _op_user_list
-    ;;
-  reactivate)
-    _op_user_reactivate
-    ;;
-  suspend)
-    _op_user_suspend
-    ;;
-  esac
-}
-
-function _op_user_confirm {
-  _arguments \
-    '--all[confirm all unconfirmed users]' \
-    '(-h --help)'{-h,--help}'[get help with user confirm]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_user_delete {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with user delete]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_user_edit {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with user edit]' \
-    '--name[set the user'\''s name]:' \
-    '--travel-mode[turn Travel Mode on or off for the user]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_user_get {
-  _arguments \
-    '--fingerprint[get the user'\''s public key fingerprint]' \
-    '(-h --help)'{-h,--help}'[get help with user get]' \
-    '--me[get the authenticated user'\''s details]' \
-    '--public-key[get the user'\''s public key]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_user_invite {
-  _arguments \
-    '--email[provide the email address of the user]:' \
-    '(-h --help)'{-h,--help}'[get help with user invite]' \
-    '--language[provide the user'\''s account language]:' \
-    '--name[provide the name of the user]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_user_list {
-  _arguments \
-    '--group[list users who belong to a `group`]:' \
-    '(-h --help)'{-h,--help}'[get help with user list]' \
-    '--vault[list users who have direct access to `vault`]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_user_reactivate {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with user reactivate]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_user_suspend {
-  _arguments \
-    '--deauthorize-devices-after[deauthorize the user'\''s devices after a time (rounded down to seconds)]:' \
-    '(-h --help)'{-h,--help}'[get help with user suspend]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_vault {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with vault]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "create:Create a new vault"
-      "delete:Remove a vault"
-      "edit:Edit a vault's name, description, icon or Travel Mode status"
-      "get:Get details about a vault"
-      "group:Manage group vault access"
-      "list:List all vaults in the account"
-      "user:Manage user vault access"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  create)
-    _op_vault_create
-    ;;
-  delete)
-    _op_vault_delete
-    ;;
-  edit)
-    _op_vault_edit
-    ;;
-  get)
-    _op_vault_get
-    ;;
-  group)
-    _op_vault_group
-    ;;
-  list)
-    _op_vault_list
-    ;;
-  user)
-    _op_vault_user
-    ;;
-  esac
-}
-
-function _op_vault_create {
-  _arguments \
-    '--allow-admins-to-manage[set whether admins can manage the vault - default: false]:' \
-    '--description[set the group'\''s `description`]:' \
-    '(-h --help)'{-h,--help}'[get help with vault create]' \
-    '--icon[set the vault icon]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_vault_delete {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with vault delete]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_vault_edit {
-  _arguments \
-    '--description[change the vault'\''s `description`]:' \
-    '(-h --help)'{-h,--help}'[get help with vault edit]' \
-    '--icon[change the vault'\''s `icon`]:' \
-    '--name[change the vault'\''s `name`]:' \
-    '--travel-mode[turn Travel Mode on or off for the vault - only enabled vaults will be accessible while a user has enabled Travel Mode]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_vault_get {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with vault get]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_vault_group {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with vault group]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "grant:Grant a group permissions to a vault"
-      "list:List all the groups that have access to the given vault"
-      "revoke:Revoke a portion or the entire access of a group to a vault"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  grant)
-    _op_vault_group_grant
-    ;;
-  list)
-    _op_vault_group_list
-    ;;
-  revoke)
-    _op_vault_group_revoke
-    ;;
-  esac
-}
-
-function _op_vault_group_grant {
-  _arguments \
-    '--group[the `group` to receive access]:' \
-    '(-h --help)'{-h,--help}'[get help with vault group grant]' \
-    '--no-input[do not prompt for `input` on interactive terminal]' \
-    '--permissions[the `permissions` to grant to the group]:' \
-    '--vault[the `vault` to grant group permissions to]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_vault_group_list {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with vault group list]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_vault_group_revoke {
-  _arguments \
-    '--group[the `group` to revoke access from]:' \
-    '(-h --help)'{-h,--help}'[get help with vault group revoke]' \
-    '--no-input[do not prompt for `input` on interactive terminal]' \
-    '--permissions[the `permissions` to revoke from the group]:' \
-    '--vault[the `vault` to revoke access to]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_vault_list {
-  _arguments \
-    '--group[list vaults a group has access to]:' \
-    '(-h --help)'{-h,--help}'[get help with vault list]' \
-    '--user[list vaults that a given user has access to]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-
-function _op_vault_user {
-  local -a commands
-
-  _arguments -C \
-    '(-h --help)'{-h,--help}'[get help with vault user]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:' \
-    "1: :->cmnds" \
-    "*::arg:->args"
-
-  case $state in
-  cmnds)
-    commands=(
-      "grant:Grant a user access to a vault"
-      "list:List all the users with access to the vault and their permissions"
-      "revoke:Revoke a portion or the entire access of a user to a vault"
-    )
-    _describe "command" commands
-    ;;
-  esac
-
-  case "$words[1]" in
-  grant)
-    _op_vault_user_grant
-    ;;
-  list)
-    _op_vault_user_list
-    ;;
-  revoke)
-    _op_vault_user_revoke
-    ;;
-  esac
-}
-
-function _op_vault_user_grant {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with vault user grant]' \
-    '--no-input[do not prompt for `input` on interactive terminal]' \
-    '--permissions[the `permissions` to grant to the user]:' \
-    '--user[the `user` to receive access]:' \
-    '--vault[the `vault` to grant access to]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_vault_user_list {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with vault user list]' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
-function _op_vault_user_revoke {
-  _arguments \
-    '(-h --help)'{-h,--help}'[get help with vault user revoke]' \
-    '--no-input[do not prompt for `input` on interactive terminal]' \
-    '--permissions[the `permissions` to revoke from the user]:' \
-    '--user[the `user` to revoke access from]:' \
-    '--vault[the `vault` to revoke access to]:' \
-    '--account[when signed in to multiple accounts simultaneously, use the account with this shorthand. Run '\''op account list'\'' to find available shorthands]:' \
-    '--cache[store and use cached information]' \
-    '--config[use this configuration `directory`]:' \
-    '--encoding[use this character encoding `type` - default: UTF-8, supported: SHIFT_JIS, gbk]:' \
-    '--format[use this output format (can be: '\''human-readable'\'' or '\''json'\''), can be set as the OP_FORMAT environment variable]:' \
-    '--iso-timestamps[format timestamps according to ISO 8601 / RFC 3339]' \
-    '--no-color[print output without color]' \
-    '--session[authenticate with this session `token`, a session token is output from successful `op signin` commands]:'
-}
-
+#compdef op
+compdef _op op
+
+# zsh completion for op                                   -*- shell-script -*-
+
+__op_debug()
+{
+    local file="$BASH_COMP_DEBUG_FILE"
+    if [[ -n ${file} ]]; then
+        echo "$*" >> "${file}"
+    fi
+}
+
+_op()
+{
+    local shellCompDirectiveError=1
+    local shellCompDirectiveNoSpace=2
+    local shellCompDirectiveNoFileComp=4
+    local shellCompDirectiveFilterFileExt=8
+    local shellCompDirectiveFilterDirs=16
+    local shellCompDirectiveKeepOrder=32
+
+    local lastParam lastChar flagPrefix requestComp out directive comp lastComp noSpace keepOrder
+    local -a completions
+
+    __op_debug "\n========= starting completion logic =========="
+    __op_debug "CURRENT: ${CURRENT}, words[*]: ${words[*]}"
+
+    # The user could have moved the cursor backwards on the command-line.
+    # We need to trigger completion from the $CURRENT location, so we need
+    # to truncate the command-line ($words) up to the $CURRENT location.
+    # (We cannot use $CURSOR as its value does not work when a command is an alias.)
+    words=("${=words[1,CURRENT]}")
+    __op_debug "Truncated words[*]: ${words[*]},"
+
+    lastParam=${words[-1]}
+    lastChar=${lastParam[-1]}
+    __op_debug "lastParam: ${lastParam}, lastChar: ${lastChar}"
+
+    # For zsh, when completing a flag with an = (e.g., op -n=<TAB>)
+    # completions must be prefixed with the flag
+    setopt local_options BASH_REMATCH
+    if [[ "${lastParam}" =~ '-.*=' ]]; then
+        # We are dealing with a flag with an =
+        flagPrefix="-P ${BASH_REMATCH}"
+    fi
+
+    # Prepare the command to obtain completions
+    requestComp="${words[1]} __complete ${words[2,-1]}"
+    if [ "${lastChar}" = "" ]; then
+        # If the last parameter is complete (there is a space following it)
+        # We add an extra empty parameter so we can indicate this to the go completion code.
+        __op_debug "Adding extra empty parameter"
+        requestComp="${requestComp} \"\""
+    fi
+
+    __op_debug "About to call: eval ${requestComp}"
+
+    # Use eval to handle any environment variables and such
+    out=$(eval ${requestComp} 2>/dev/null)
+    __op_debug "completion output: ${out}"
+
+    # Extract the directive integer following a : from the last line
+    local lastLine
+    while IFS='\n' read -r line; do
+        lastLine=${line}
+    done < <(printf "%s\n" "${out[@]}")
+    __op_debug "last line: ${lastLine}"
+
+    if [ "${lastLine[1]}" = : ]; then
+        directive=${lastLine[2,-1]}
+        # Remove the directive including the : and the newline
+        local suffix
+        (( suffix=${#lastLine}+2))
+        out=${out[1,-$suffix]}
+    else
+        # There is no directive specified.  Leave $out as is.
+        __op_debug "No directive found.  Setting do default"
+        directive=0
+    fi
+
+    __op_debug "directive: ${directive}"
+    __op_debug "completions: ${out}"
+    __op_debug "flagPrefix: ${flagPrefix}"
+
+    if [ $((directive & shellCompDirectiveError)) -ne 0 ]; then
+        __op_debug "Completion received error. Ignoring completions."
+        return
+    fi
+
+    local activeHelpMarker="_activeHelp_ "
+    local endIndex=${#activeHelpMarker}
+    local startIndex=$((${#activeHelpMarker}+1))
+    local hasActiveHelp=0
+    while IFS='\n' read -r comp; do
+        # Check if this is an activeHelp statement (i.e., prefixed with $activeHelpMarker)
+        if [ "${comp[1,$endIndex]}" = "$activeHelpMarker" ];then
+            __op_debug "ActiveHelp found: $comp"
+            comp="${comp[$startIndex,-1]}"
+            if [ -n "$comp" ]; then
+                compadd -x "${comp}"
+                __op_debug "ActiveHelp will need delimiter"
+                hasActiveHelp=1
+            fi
+
+            continue
+        fi
+
+        if [ -n "$comp" ]; then
+            # If requested, completions are returned with a description.
+            # The description is preceded by a TAB character.
+            # For zsh's _describe, we need to use a : instead of a TAB.
+            # We first need to escape any : as part of the completion itself.
+            comp=${comp//:/\\:}
+
+            local tab="$(printf '\t')"
+            comp=${comp//$tab/:}
+
+            __op_debug "Adding completion: ${comp}"
+            completions+=${comp}
+            lastComp=$comp
+        fi
+    done < <(printf "%s\n" "${out[@]}")
+
+    # Add a delimiter after the activeHelp statements, but only if:
+    # - there are completions following the activeHelp statements, or
+    # - file completion will be performed (so there will be choices after the activeHelp)
+    if [ $hasActiveHelp -eq 1 ]; then
+        if [ ${#completions} -ne 0 ] || [ $((directive & shellCompDirectiveNoFileComp)) -eq 0 ]; then
+            __op_debug "Adding activeHelp delimiter"
+            compadd -x "--"
+            hasActiveHelp=0
+        fi
+    fi
+
+    if [ $((directive & shellCompDirectiveNoSpace)) -ne 0 ]; then
+        __op_debug "Activating nospace."
+        noSpace="-S ''"
+    fi
+
+    if [ $((directive & shellCompDirectiveKeepOrder)) -ne 0 ]; then
+        __op_debug "Activating keep order."
+        keepOrder="-V"
+    fi
+
+    if [ $((directive & shellCompDirectiveFilterFileExt)) -ne 0 ]; then
+        # File extension filtering
+        local filteringCmd
+        filteringCmd='_files'
+        for filter in ${completions[@]}; do
+            if [ ${filter[1]} != '*' ]; then
+                # zsh requires a glob pattern to do file filtering
+                filter="\*.$filter"
+            fi
+            filteringCmd+=" -g $filter"
+        done
+        filteringCmd+=" ${flagPrefix}"
+
+        __op_debug "File filtering command: $filteringCmd"
+        _arguments '*:filename:'"$filteringCmd"
+    elif [ $((directive & shellCompDirectiveFilterDirs)) -ne 0 ]; then
+        # File completion for directories only
+        local subdir
+        subdir="${completions[1]}"
+        if [ -n "$subdir" ]; then
+            __op_debug "Listing directories in $subdir"
+            pushd "${subdir}" >/dev/null 2>&1
+        else
+            __op_debug "Listing directories in ."
+        fi
+
+        local result
+        _arguments '*:dirname:_files -/'" ${flagPrefix}"
+        result=$?
+        if [ -n "$subdir" ]; then
+            popd >/dev/null 2>&1
+        fi
+        return $result
+    else
+        __op_debug "Calling _describe"
+        if eval _describe $keepOrder "completions" completions $flagPrefix $noSpace; then
+            __op_debug "_describe found some completions"
+
+            # Return the success of having called _describe
+            return 0
+        else
+            __op_debug "_describe did not find completions."
+            __op_debug "Checking if we should do file completion."
+            if [ $((directive & shellCompDirectiveNoFileComp)) -ne 0 ]; then
+                __op_debug "deactivating file completion"
+
+                # We must return an error code here to let zsh know that there were no
+                # completions found by _describe; this is what will trigger other
+                # matching algorithms to attempt to find completions.
+                # For example zsh can match letters in the middle of words.
+                return 1
+            else
+                # Perform file completion
+                __op_debug "Activating file completion"
+
+                # We must return the result of this command, so it must be the
+                # last command, or else we must store its result to return it.
+                _arguments '*:filename:_files'" ${flagPrefix}"
+            fi
+        fi
+    fi
+}
+
+# don't run the completion function when being source-ed or eval-ed
+if [ "$funcstack[1]" = "_op" ]; then
+    _op
+fi
