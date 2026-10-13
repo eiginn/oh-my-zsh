@@ -9,13 +9,14 @@
 
 # if superuser make the username green
 if [ $UID -eq 0 ]; then NCOLOR="red"; else NCOLOR="green"; fi
+if [ $SSH_CONNECTION ]; then SSH_PROMPT="%{$fg[red]%}(SSH)%{$reset_color%}"; else SSH_PROMPT=''; fi
 
 return_code="%(?..%{$fg[red]%}%? ↵%{$reset_color%})"
 #RPS1='${return_code}'
 
 # prompt
-PROMPT='[%{$fg[$NCOLOR]%}%B%n%b%{$reset_color%}:%{$fg[blue]%}%B%60<...<%~%<<%b%{$reset_color%}]%(!.#.$) '
-PROMPT='[%{$fg[$NCOLOR]%}%B%n%{$fg[blue]%}@%{$fg[red]%}%M%b%{$reset_color%}:%{$fg[blue]%}%B%60<...<%~%<<%b%{$reset_color%}]%(!.#.$) '
+#PROMPT='[%{$fg[$NCOLOR]%}%B%n%b%{$reset_color%}:%{$fg[blue]%}%B%60<...<%~%<<%b%{$reset_color%}]%(!.#.$) '
+PROMPT='%{$SSH_PROMPT%}[%{$fg[$NCOLOR]%}%B%n%{$fg[blue]%}@%{$fg[red]%}%M%b%{$reset_color%}:%{$fg[blue]%}%B%60<...<%~%<<%b%{$reset_color%}]%(!.#.$) '
 #RPROMPT='${return_code} $(git_prompt_info)'
 
 # git theming
